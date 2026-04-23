@@ -1,1430 +1,966 @@
-import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Menu, X, ArrowRight, MapPin, Phone, Mail, ArrowUpRight, Instagram, Linkedin, Plus, Minus, Play
+  ArrowRight, Globe, Zap, X, Menu, 
+  Code, PenTool, LayoutTemplate, Smartphone,
+  MapPin, ArrowUpRight, ChevronRight, Quote,
+  MousePointer2, Plus, Minus,
+  Cpu, MessageSquare, Server, BarChart
 } from 'lucide-react';
 
-// --- CONTEXT FOR CUSTOM CURSOR ---
-const CursorContext = createContext();
+// --- STYLING, ANIMATION & FONT INJECTION ---
+const StyleInjector = () => (
+  <style dangerouslySetInnerHTML={{__html: `
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@200;400;700;900&family=Poppins:wght@300;400;500;600&display=swap');
+    
+    :root {
+      --bg-dark: #050505;
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-bg: rgba(255, 255, 255, 0.02);
+      --text-main: #ffffff;
+      --text-muted: #777777;
+    }
+    
+    html, body {
+      background-color: var(--bg-dark) !important;
+      color: var(--text-main) !important;
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      overflow-x: hidden;
+    }
 
-// --- CUSTOM CSS (Injected) ---
-const ultraModernStyles = `
-  @import url('https://fonts.googleapis.com/css2?family=Urbanist:wght@100;200;300;400;500;600;700;800;900&display=swap');
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+    }
 
-  :root {
-    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-    --ease-in-out-quint: cubic-bezier(0.83, 0, 0.17, 1);
-  }
-  
-  html, body {
-    cursor: none; /* Hide default cursor for desktop */
-    scroll-behavior: smooth;
-    font-family: 'Urbanist', sans-serif;
-  }
+    h1, h2, h3, h4, h5, h6, .font-display { font-family: 'Montserrat', sans-serif; }
 
-  /* Clip Path Unveil Animation */
-  .clip-hidden {
-    clip-path: polygon(0 100%, 100% 100%, 100% 100%, 0 100%);
-  }
-  .clip-visible {
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
-  }
-  .clip-transition {
-    transition: clip-path 1.5s var(--ease-in-out-quint);
-  }
+    .glass-panel {
+      background: var(--glass-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--glass-border);
+    }
 
-  /* Hide scrollbar for clean look */
-  ::-webkit-scrollbar { width: 8px; }
-  ::-webkit-scrollbar-track { background: #fafafa; }
-  ::-webkit-scrollbar-thumb { background: #e4e4e7; }
-  ::-webkit-scrollbar-thumb:hover { background: #d4d4d8; }
+    /* Modern Editorial Grid */
+    .grid-editorial {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 2rem;
+    }
 
-  @media (max-width: 768px) {
-    html, body { cursor: auto; }
-    #custom-cursor { display: none !important; }
-  }
+    /* Scroll Reveal Animations */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1), transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.active { opacity: 1; transform: translateY(0); }
+    .delay-100 { transition-delay: 100ms; }
+    .delay-200 { transition-delay: 200ms; }
+    .delay-300 { transition-delay: 300ms; }
 
-  /* Hollow Text Effect */
-  .text-hollow {
-    color: transparent;
-    -webkit-text-stroke: 1px #09090b; /* zinc-950 */
-  }
-  .text-hollow-white {
-    color: transparent;
-    -webkit-text-stroke: 1px #ffffff;
-  }
-  @media (min-width: 768px) {
-    .text-hollow { -webkit-text-stroke: 2px #09090b; }
-    .text-hollow-white { -webkit-text-stroke: 2px #ffffff; }
-  }
+    /* Image Treatments */
+    .img-monochrome {
+      filter: grayscale(100%) contrast(120%) brightness(80%);
+      transition: filter 0.5s ease, transform 0.7s ease;
+    }
+    .group:hover .img-monochrome {
+      filter: grayscale(100%) contrast(100%) brightness(100%);
+      transform: scale(1.02);
+    }
 
-  /* Seamless Marquee Animation */
-  @keyframes marquee {
-    0% { transform: translateX(0%); }
-    100% { transform: translateX(-50%); }
-  }
-  .animate-marquee {
-    display: flex;
-    width: max-content;
-    animation: marquee 30s linear infinite;
-  }
-`;
+    /* Page Enter Animations */
+    .page-enter { animation: slideUpFade 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; transform: translateY(20px); }
+    .stagger-1 { animation-delay: 0.1s; }
+    .stagger-2 { animation-delay: 0.2s; }
+    .stagger-3 { animation-delay: 0.3s; }
+    @keyframes slideUpFade {
+      0% { opacity: 0; transform: translateY(40px); filter: blur(5px); }
+      100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+    }
 
-// --- INTERACTIVE COMPONENTS ---
+    /* Outline Text Effect */
+    .text-outline {
+      color: transparent;
+      -webkit-text-stroke: 1px rgba(255, 255, 255, 0.4);
+      transition: all 0.5s ease;
+    }
+    .text-outline:hover, .group:hover .text-outline {
+      color: #ffffff;
+      -webkit-text-stroke: 1px transparent;
+    }
 
-const CustomCursor = () => {
-  const { isHovering } = useContext(CursorContext);
-  const [position, setPosition] = useState({ x: -100, y: -100 });
-  const [isClicking, setIsClicking] = useState(false);
+    /* Marquee Animation */
+    @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
+    .animate-marquee { display: inline-block; white-space: nowrap; animation: marquee 40s linear infinite; }
 
-  useEffect(() => {
-    const updatePosition = (e) => setPosition({ x: e.clientX, y: e.clientY });
-    const handleMouseDown = () => setIsClicking(true);
-    const handleMouseUp = () => setIsClicking(false);
+    /* Leaflet Overrides */
+    .leaflet-container { background: var(--bg-dark) !important; font-family: 'Poppins', sans-serif; }
+    .leaflet-control-zoom { border: 1px solid var(--glass-border) !important; background: var(--glass-bg) !important; backdrop-filter: blur(10px); }
+    .leaflet-control-zoom a { background: transparent !important; color: #fff !important; border-bottom: 1px solid var(--glass-border) !important; }
+    .leaflet-control-zoom a:hover { background: rgba(255,255,255,0.1) !important; }
+    .leaflet-bar { box-shadow: none !important; }
+    .leaflet-control-attribution { display: none !important; }
+    
+    .pulse-marker {
+      width: 14px; height: 14px;
+      background: #fff; border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+      animation: pulse 2s infinite cubic-bezier(0.66, 0, 0, 1);
+      cursor: pointer; border: 2px solid var(--bg-dark); transition: transform 0.4s ease;
+    }
+    .pulse-marker:hover { transform: scale(1.8); }
+    @keyframes pulse { 100% { box-shadow: 0 0 0 24px rgba(255, 255, 255, 0); } }
 
-    window.addEventListener('mousemove', updatePosition);
-    window.addEventListener('mousedown', handleMouseDown);
-    window.addEventListener('mouseup', handleMouseUp);
+    /* Inputs */
+    input, textarea {
+      background: transparent; border: none; border-bottom: 1px solid var(--glass-border);
+      color: white; font-family: 'Poppins', sans-serif; padding: 16px 0; transition: border-color 0.4s ease;
+      border-radius: 0;
+    }
+    input:focus, textarea:focus { outline: none; border-bottom-color: white; }
+    input::placeholder, textarea::placeholder { color: var(--text-muted); }
 
-    return () => {
-      window.removeEventListener('mousemove', updatePosition);
-      window.removeEventListener('mousedown', handleMouseDown);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, []);
-
-  return (
-    <div 
-      id="custom-cursor"
-      className="fixed top-0 left-0 w-8 h-8 pointer-events-none z-[100] mix-blend-difference flex items-center justify-center transition-transform duration-300 ease-out"
-      style={{ transform: `translate(${position.x - 16}px, ${position.y - 16}px)` }}
-    >
-      <div 
-        className={`bg-white rounded-full transition-all duration-300 ${
-          isHovering ? 'w-16 h-16 opacity-100' : (isClicking ? 'w-2 h-2 opacity-50' : 'w-4 h-4 opacity-100')
-        }`}
-      />
-    </div>
-  );
-};
-
-const Interactive = ({ children, className = '', onClick }) => {
-  const { setIsHovering } = useContext(CursorContext);
-  return (
-    <div 
-      className={className}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-      onClick={onClick}
-    >
-      {children}
-    </div>
-  );
-};
-
-const useOnScreen = (options) => {
-  const ref = useRef();
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setIsVisible(true);
-        if (ref.current) observer.unobserve(ref.current);
-      }
-    }, { threshold: 0.1, ...options });
-
-    const currentRef = ref.current;
-    if (currentRef) observer.observe(currentRef);
-    return () => { if (currentRef) observer.unobserve(currentRef); };
-  }, [options]);
-
-  return [ref, isVisible];
-};
-
-const UnveilImage = ({ src, alt, className = '' }) => {
-  const [ref, isVisible] = useOnScreen({ threshold: 0.2 });
-  return (
-    <div ref={ref} className={`overflow-hidden relative ${className}`}>
-      <img 
-        src={src} 
-        alt={alt} 
-        className={`w-full h-full object-cover clip-transition ${isVisible ? 'clip-visible scale-100' : 'clip-hidden scale-110'} transition-transform duration-[2s] ease-out`}
-      />
-    </div>
-  );
-};
-
-const UnveilVideo = ({ src, className = '' }) => {
-  const [ref, isVisible] = useOnScreen({ threshold: 0.2 });
-  return (
-    <div ref={ref} className={`overflow-hidden relative ${className}`}>
-      <video 
-        autoPlay 
-        loop 
-        muted 
-        playsInline 
-        src={src}
-        className={`w-full h-full object-cover clip-transition ${isVisible ? 'clip-visible scale-100' : 'clip-hidden scale-110'} transition-transform duration-[2s] ease-out`}
-      />
-    </div>
-  );
-};
-
-const HeroImageReveal = ({ src, alt, className = '' }) => {
-  const [isLoaded, setIsLoaded] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoaded(true), 100);
-    return () => clearTimeout(timer);
-  }, []);
-  return (
-    <div className={`overflow-hidden relative ${className}`}>
-      <img 
-        src={src} 
-        alt={alt} 
-        className={`w-full h-full object-cover clip-transition ${isLoaded ? 'clip-visible scale-100' : 'clip-hidden scale-110'} transition-transform duration-[2s] ease-out`}
-      />
-    </div>
-  );
-};
-
-const RevealText = ({ text, className = '', delay = 0 }) => {
-  const [ref, isVisible] = useOnScreen();
-  return (
-    <div ref={ref} className={`overflow-hidden ${className}`}>
-      <div 
-        className={`transition-transform duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-[100%] opacity-0'}`}
-        style={{ transitionDelay: `${delay}ms` }}
-      >
-        {text}
-      </div>
-    </div>
-  );
-};
-
-const Accordion = ({ question, answer, isOpen, onClick }) => {
-  return (
-    <div className="border-b border-zinc-200">
-      <Interactive>
-        <button 
-          onClick={onClick} 
-          className="w-full py-8 flex justify-between items-center text-left focus:outline-none"
-        >
-          <span className="text-xl md:text-3xl font-light text-zinc-950">{question}</span>
-          <span className="ml-4 flex-shrink-0 text-zinc-400">
-            {isOpen ? <Minus className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
-          </span>
-        </button>
-      </Interactive>
-      <div 
-        className={`overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${isOpen ? 'max-h-96 pb-8 opacity-100' : 'max-h-0 opacity-0'}`}
-      >
-        <p className="text-lg md:text-xl font-light text-zinc-500 max-w-3xl leading-relaxed">{answer}</p>
-      </div>
-    </div>
-  );
-};
-
-// --- LAYOUT WRAPPER ---
-const Section = ({ children, className = '', innerClassName = '', noVerticalPadding = false }) => (
-  <section className={`${noVerticalPadding ? '' : 'py-32 md:py-40'} px-[3%] ${className}`}>
-    <div className={`max-w-[1600px] mx-auto w-full ${innerClassName}`}>
-      {children}
-    </div>
-  </section>
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-dark); border-left: 1px solid rgba(255,255,255,0.05); }
+    ::-webkit-scrollbar-thumb { background: #333; }
+    ::-webkit-scrollbar-thumb:hover { background: #555; }
+    
+    /* Interactive Grid Hover */
+    .tech-grid:hover .tech-item { opacity: 0.3; }
+    .tech-grid .tech-item:hover { opacity: 1; transform: scale(1.05); border-color: rgba(255,255,255,0.5); z-index: 10; background: rgba(255,255,255,0.05); }
+  `}} />
 );
 
-
-// --- DUMMY CMS DATA ---
-const projectsData = [
-  { id: 1, title: 'Hobsonville Col.', location: 'Auckland', status: 'Completed', image: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80' },
-  { id: 2, title: 'Epsom Arch.', location: 'Auckland', status: 'Completed', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80' },
-  { id: 3, title: 'Peninsula Terraces', location: 'Te Atatu', status: 'Selling Now', image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-4.0.3&auto=format&fit=crop&w=1600&q=80' }
-];
-
-const servicesData = [
-  { 
-    title: 'Development', 
-    desc: 'From identifying great locations to thoughtfully planned residential communities. Full lifecycle management.', 
-    image: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-    features: ['Site Acquisition', 'Feasibility Studies', 'Resource Consents', 'Community Planning']
-  },
-  { 
-    title: 'Construction', 
-    desc: 'Reliable, high-quality construction with absolute attention to detail, timelines, and cost control.', 
-    image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-    features: ['Fixed-Price Contracts', 'Rigorous Quality Assurance', 'Timely Execution', 'Health & Safety Compliance']
-  },
-  { 
-    title: 'Custom Homes', 
-    desc: 'Standalone homes tailored to modern lifestyles, combining smart architectural design with long-term value.', 
-    image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-    features: ['Bespoke Architectural Design', 'Premium Material Sourcing', 'Interior Design Consulting', 'Turnkey Solutions']
-  },
-  { 
-    title: 'Project Management', 
-    desc: 'From planning to subdivision, compliance, and completion, we handle every stage of the journey.', 
-    image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80',
-    features: ['Timeline Management', 'Budget Control', 'Contractor Coordination', 'Final Certification']
-  }
-];
-
-const valuesData = [
-  { num: '01', title: 'Architectural Integrity', desc: 'We never compromise on design. Every home is built with a focus on spatial flow, natural light, and premium materials.' },
-  { num: '02', title: 'Transparent Process', desc: 'From day one, our clients have full visibility into costs, timelines, and construction progress. No surprises.' },
-  { num: '03', title: 'Enduring Quality', desc: 'We build homes that last generations. Our rigorous quality assurance guarantees excellence at every phase.' }
-];
-
-const processData = [
-  { step: '01', title: 'Discovery', desc: 'We begin with a deep dive into your vision, site potential, and feasibility. We establish clear parameters for success.' },
-  { step: '02', title: 'Architecture', desc: 'Our design team translates your brief into conceptual frameworks, managing all local council compliance and resource consents.' },
-  { step: '03', title: 'Construction', desc: 'Execution with precision. Our experienced project managers and builders bring the architectural plans to life.' },
-  { step: '04', title: 'Handover', desc: 'Rigorous quality assurance, final certifications, and the moment we hand over the keys to your completed property.' }
-];
-
-const faqData = [
-  { q: "Do you handle both design and construction?", a: "Yes. Pillar Properties operates as an end-to-end partner. We manage the entire lifecycle from initial architectural concepts and council consents through to the final build and interior finishing." },
-  { q: "What areas of Auckland do you service?", a: "We primarily operate across the greater Auckland region, with a strong focus on the central suburbs, North Shore, and emerging developments in the West and South." },
-  { q: "Do you work with investors for multi-unit developments?", a: "Absolutely. A large portion of our portfolio consists of high-yield townhouse and terraced home developments tailored for property investors and syndicates." },
-  { q: "How do you ensure projects stay on budget?", a: "We provide fixed-price contracts and highly detailed initial scoping. Our transparent procurement process and tight project management eliminate unexpected variations." }
-];
-
-const teamData = [
-  { name: 'James Carter', role: 'Managing Director', image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' },
-  { name: 'Elena Rostova', role: 'Head of Architecture', image: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' },
-  { name: 'Marcus Chen', role: 'Lead Developer', image: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80' }
-];
-
-const milestonesData = [
-  { year: '2019', title: 'The Foundation', desc: 'Pillar Properties was established with a vision to redefine Auckland residential architecture.' },
-  { year: '2021', title: 'First Major Project', desc: 'Completed the landmark Epsom Architectural series, setting a new benchmark for luxury.' },
-  { year: '2023', title: 'Expansion & Growth', desc: 'Scaled operations to manage over 15 active sites simultaneously across the greater Auckland region.' },
-  { year: '2026', title: 'Sustainable Future', desc: 'Committed to 100% passive heating integration and carbon-neutral construction practices.' }
-];
-
-const awardsData = [
-  { year: '2024', title: 'NZIA Local Architecture Award', category: 'Housing - Multi Unit' },
-  { year: '2025', title: 'Master Builders House of the Year', category: 'Gold Award' },
-  { year: '2026', title: 'Sustainable Design Excellence', category: 'Innovation in Building' }
-];
-
-const insightsData = [
-  { category: 'Architecture', date: 'March 2026', title: 'The Rise of Minimalist Concrete in Auckland Homes' },
-  { category: 'Market Update', date: 'February 2026', title: 'Navigating Resource Consents for Multi-Unit Builds' },
-  { category: 'Sustainability', date: 'January 2026', title: 'Integrating Passive Heating into Luxury Designs' }
-];
-
-const futureProjectsData = [
-  { title: 'The Parnell Ascend', location: 'Parnell, Auckland', expected: 'Q3 2026' },
-  { title: 'Orakei Basin Villas', location: 'Orakei, Auckland', expected: 'Q4 2026' },
-  { title: 'Grey Lynn Urban', location: 'Grey Lynn, Auckland', expected: 'Q1 2027' }
-];
-
-const signatureDetails = [
-  { title: "Bespoke Joinery", desc: "Custom cabinetry and shelving designed to blend seamlessly into the architectural form, eliminating visual clutter.", image: "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" },
-  { title: "Polished Concrete", desc: "Thermal mass heating meets industrial elegance with our signature poured and ground floors.", image: "https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" },
-  { title: "Spatial Harmony", desc: "Double-height voids and floor-to-ceiling glazing engineered to capture and maximize natural Auckland light.", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" }
-];
-
-const galleryData = [
-  "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1613490908677-62a26500ac13?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1503387762-592deb58ef4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1541888086925-0c13bb4229f7?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1518780664697-55e3ad937233?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1600566753376-12c8ab7fb75b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1556910103-1c02745aae4d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1600585154363-67eb9e2e2099?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1512915922686-57c11dde9b6b?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1576013551627-c0208f3216fa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1600607686527-6fb886090705?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80"
-];
-
-// Marquee Text Loop
-const marqueeItems = [
-  "Residential Developers", "Architectural Builders", "Project Managers", "Investment Partners",
-  "Residential Developers", "Architectural Builders", "Project Managers", "Investment Partners"
-];
-
-// --- AI HELPER FUNCTION ---
-const generateAIBrief = async (userPrompt) => {
-  const apiKey = "";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-  
-  const systemInstruction = `You are an expert architectural consultant for Pillar Properties, a premium residential developer in Auckland, New Zealand. 
-The user will describe their dream home or investment project. 
-Respond with a highly professional, minimalist, and structured architectural brief containing exactly these three sections:
-CONCEPT SUMMARY: A 2-sentence sophisticated summary of the vision.
-DESIGN DIRECTION: Recommended materials, architectural style, and spatial flow.
-PROJECTED TIMELINE: A realistic high-level timeline for Auckland (e.g., Feasibility, Consent, Build).
-Keep the tone ultra-premium, confident, and concise. Use simple plain text with capital letters for section headers. Do not use asterisks or markdown styling.`;
-
-  const payload = {
-    contents: [{ parts: [{ text: userPrompt }] }],
-    systemInstruction: { parts: [{ text: systemInstruction }] }
-  };
-
-  const delays = [1000, 2000, 4000, 8000, 16000];
-  let lastError = null;
-
-  for (let i = 0; i <= delays.length; i++) {
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+// --- CUSTOM HOOKS ---
+const useScrollReveal = () => {
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active');
+        }
       });
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || "No brief generated. Please try again.";
-    } catch (error) {
-      lastError = error;
-      if (i < delays.length) {
-        await new Promise(resolve => setTimeout(resolve, delays[i]));
-      }
+    }, { threshold: 0.1, rootMargin: '0px 0px -10% 0px' });
+
+    const elements = document.querySelectorAll('.reveal');
+    elements.forEach(el => observer.observe(el));
+    
+    return () => observer.disconnect();
+  }, []);
+};
+
+// --- DATA ---
+const LOCATIONS = [
+  { id: 'us', name: 'New York', country: 'United States', coords: [40.7128, -74.0060], desc: 'The heartbeat of our global creative operations. Where strategy meets the skyline.', team: 12 },
+  { id: 'uk', name: 'London', country: 'United Kingdom', coords: [51.5074, -0.1278], desc: 'Our European hub for cutting-edge design and immersive digital experiences.', team: 8 },
+  { id: 'ca', name: 'Toronto', country: 'Canada', coords: [43.6510, -79.3470], desc: 'Driving technological innovation and robust platform engineering.', team: 10 },
+  { id: 'au', name: 'Sydney', country: 'Australia', coords: [-33.8688, 151.2093], desc: 'Setting the trend for the APAC region with bold brand narratives.', team: 5 }
+];
+
+const SERVICES = [
+  { id: '01', title: 'Marketing Technology', desc: 'Architecting scalable MarTech stacks, CRM integrations, and automated marketing pipelines.', icon: Cpu, img: 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=2070&auto=format&fit=crop' },
+  { id: '02', title: 'Strategic MarComms', desc: 'Data-driven brand narratives, digital PR, and targeted global communication campaigns.', icon: MessageSquare, img: 'https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=2070&auto=format&fit=crop' },
+  { id: '03', title: 'IT Enabled Services', desc: 'Robust infrastructure management, technical support, and global business process outsourcing.', icon: Server, img: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop' },
+  { id: '04', title: 'Data & Intelligence', desc: 'Advanced analytics, consumer insights, and performance tracking across the digital ecosystem.', icon: BarChart, img: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop' },
+];
+
+const WORK = [
+  { id: '01', title: "Project Nebula", type: "Digital Platform", year: "2025", img: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop" },
+  { id: '02', title: "Aura System", type: "Brand Identity", year: "2024", img: "https://images.unsplash.com/photo-1604871000636-074fa5117945?q=80&w=1974&auto=format&fit=crop" },
+  { id: '03', title: "Void Space", type: "Immersive Web", year: "2022", img: "https://images.unsplash.com/photo-1550684376-efcbd6e3f031?q=80&w=2070&auto=format&fit=crop" },
+  { id: '04', title: "Zenith App", type: "Mobile Ecosystem", year: "2021", img: "https://images.unsplash.com/photo-1614729939124-032f0b56c9ce?q=80&w=2069&auto=format&fit=crop" }
+];
+
+const BRANDS = ["LVMH", "TESLA", "APPLE", "NIKE", "POLESTAR", "RICHEMONT", "SONY", "LVMH", "TESLA", "APPLE", "NIKE"];
+
+const PROCESS_STEPS = [
+  { title: "Audit", desc: "We evaluate your existing marketing stack, comms logic, and operational bottlenecks." },
+  { title: "Architecture", desc: "Structuring the ideal data pipelines, CRM workflows, and ITES strategies." },
+  { title: "Integration", desc: "Executing with precision to seamlessly connect disparate IT and marketing systems." },
+  { title: "Scale", desc: "Rigorous performance monitoring, scalable BPO, and continuous process optimization." }
+];
+
+const TECH_STACK = [
+  "Salesforce", "HubSpot", "Marketo", "AWS Analytics", "Tableau", "Snowflake", "Zendesk", "Adobe Cloud"
+];
+
+const FAQS = [
+  { q: "How do you handle MarTech integrations?", a: "We operate on an agile model to audit, map, and integrate your CRM, CDP, and marketing automation platforms with zero downtime." },
+  { q: "What ITES support do you provide?", a: "We offer global, scalable operations ranging from technical support infrastructure to complex data processing and BPO." },
+  { q: "Do you offer post-deployment optimization?", a: "Absolutely. We provide continuous architectural scaling, iterative campaign improvements, and SLA-backed engineering support for all our enterprise deployments." }
+];
+
+const INSIGHTS = [
+  { date: "Oct 12, 2025", title: "The Fallacy of Infinite Scroll in Modern UI" },
+  { date: "Sep 28, 2024", title: "Architecting Headless Commerce for Scale" },
+  { date: "Aug 15, 2022", title: "Spatial Interfaces: Beyond the 2D Screen" }
+];
+
+// --- COMPONENTS ---
+
+const SectionHeader = ({ title, kicker, className = "" }) => (
+  <div className={`col-span-12 md:col-span-4 reveal ${className}`}>
+    <div className="sticky top-32">
+      <h4 className="text-[10px] uppercase tracking-[0.3em] text-[#777] flex items-center gap-4">
+        <span className="w-8 h-[1px] bg-[#777]"></span> {kicker}
+      </h4>
+      {title && <h2 className="font-display text-2xl md:text-3xl font-bold uppercase tracking-tight mt-6 leading-none">{title}</h2>}
+    </div>
+  </div>
+);
+
+const InstructionTag = ({ text, icon: Icon }) => (
+  <div className="inline-flex items-center gap-2 border border-white/20 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-none text-[8px] font-mono uppercase tracking-widest text-[#aaa]">
+    {Icon && <Icon size={10} />}
+    [{text}]
+  </div>
+);
+
+const GlobalMap = ({ onLocationSelect, activeLocation }) => {
+  const mapRef = useRef(null);
+  const mapInstance = useRef(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (window.L) { setIsLoaded(true); return; }
+    const css = document.createElement('link'); css.rel = 'stylesheet'; css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(css);
+    const script = document.createElement('script'); script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.onload = () => setIsLoaded(true);
+    document.head.appendChild(script);
+  }, []);
+
+  useEffect(() => {
+    if (!isLoaded || !mapRef.current) return;
+    if (!mapInstance.current) {
+      const map = window.L.map(mapRef.current, { center: [20, 0], zoom: 2, zoomControl: false, worldCopyJump: true });
+      window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 20 }).addTo(map);
+      
+      LOCATIONS.forEach(loc => {
+        const icon = window.L.divIcon({ className: '', html: `<div class="pulse-marker"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
+        window.L.marker(loc.coords, { icon }).addTo(map).on('click', () => {
+          onLocationSelect(loc);
+          map.setView(loc.coords, 5, { animate: true, pan: { duration: 1.5 }});
+        });
+      });
+      mapInstance.current = map;
     }
-  }
-  return "We are currently experiencing high demand. Please contact us directly to discuss your vision.";
+    if (activeLocation && mapInstance.current) {
+       mapInstance.current.setView(activeLocation.coords, 5, { animate: true, pan: { duration: 1.5 }});
+    }
+  }, [isLoaded, activeLocation]);
+
+  return (
+    <div className="relative w-full h-[60vh] md:h-[70vh] overflow-hidden glass-panel border-y border-white/10 group">
+      {!isLoaded && <div className="absolute inset-0 flex items-center justify-center"><div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin"></div></div>}
+      <div ref={mapRef} className="w-full h-full grayscale-[1] contrast-125 brightness-75" />
+      <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_150px_rgba(5,5,5,1)] z-10"></div>
+      
+      {/* UI Instruction Overlay */}
+      <div className="absolute top-6 left-6 z-20 pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity">
+        <InstructionTag text="DRAG TO EXPLORE / CLICK MARKERS" icon={MousePointer2} />
+      </div>
+    </div>
+  );
 };
 
 // --- PAGES ---
 
-const HomePage = ({ navigate }) => {
-  const [hoveredProject, setHoveredProject] = useState(projectsData[0].image);
-  const [activeDetail, setActiveDetail] = useState(0);
-  const [openFaqIndex, setOpenFaqIndex] = useState(null);
+const HomePage = ({ setActiveLocation, activeLocation, navigateTo }) => {
+  useScrollReveal();
+  const [hoveredWork, setHoveredWork] = useState(null);
+  const [activeFaq, setActiveFaq] = useState(null);
+
+  const toggleFaq = (idx) => {
+    setActiveFaq(activeFaq === idx ? null : idx);
+  };
 
   return (
-    <div className="animate-in fade-in duration-1000 bg-[#fafafa]">
+    <div className="flex flex-col w-full">
       
-      {/* Hero Section */}
-      <section className="relative h-screen min-h-[700px] flex flex-col w-full overflow-hidden justify-end pb-12 md:pb-16 px-[3%]">
-        {/* Cinematic Video Background */}
-        <div className="absolute inset-0 z-0 bg-zinc-950">
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-full object-cover opacity-60 scale-105"
-            src="https://video.wixstatic.com/video/548938_44a59f7f875641ef8e61ad3cc16fcdd0/1080p/mp4/file.mp4"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-zinc-950/40"></div>
-        </div>
-
-        {/* New Hero Content */}
-        <div className="w-full max-w-[1600px] mx-auto z-10 flex flex-col">
-          <RevealText text="AUCKLAND'S PREMIER RESIDENTIAL DEVELOPER" className="text-xs md:text-sm tracking-[0.3em] uppercase text-zinc-300 font-semibold mb-6" />
-          <div className="text-5xl md:text-7xl lg:text-[7vw] font-light tracking-tight text-white mb-8 md:mb-16 max-w-5xl leading-[1.1]">
-            <RevealText text="Crafting Auckland's" />
-            <RevealText text="finest homes." delay={100} />
-          </div>
-          <div className="flex flex-col md:flex-row md:items-end justify-between w-full gap-8 border-t border-white/20 pt-8">
-             <RevealText text="Over 600 premium homes delivered with uncompromising architectural integrity. Built on trust, driven by design." className="text-lg md:text-xl font-light text-zinc-300 max-w-xl" delay={200} />
-             <Interactive onClick={() => navigate('projects')} className="group flex items-center gap-4 cursor-pointer text-white">
-                <div className="w-14 h-14 rounded-full border border-white/30 backdrop-blur-sm flex items-center justify-center group-hover:bg-white group-hover:text-zinc-950 transition-colors duration-500">
-                  <ArrowRight className="w-6 h-6 transition-colors duration-500" />
-                </div>
-                <span className="uppercase tracking-[0.2em] text-sm font-semibold">Explore Portfolio</span>
-              </Interactive>
-          </div>
-        </div>
-      </section>
-
-      {/* Statement Section */}
-      <Section className="bg-white">
-        <div className="max-w-5xl">
-          <div className="text-3xl md:text-5xl lg:text-7xl font-light leading-tight tracking-tight text-zinc-950">
-            <RevealText text="We don't just build houses." />
-            <RevealText text="We design, develop, and manage" delay={100} className="text-zinc-400" />
-            <RevealText text="high-quality homes tailored" delay={200} />
-            <RevealText text="to modern lifestyles." delay={300} />
-          </div>
-        </div>
+      {/* SECTION 1: HERO */}
+      <section className="flex flex-col gap-8 items-start pt-24 md:pt-32 min-h-[85vh] justify-center border-b border-white/5 pb-16 relative overflow-hidden">
         
-        {/* Trust/Conversion Strip */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-24 md:mt-32 border-t border-zinc-200 pt-12">
-          {[
-            { num: '600+', label: 'Homes Delivered' },
-            { num: '07', label: 'Years Experience' },
-            { num: '100%', label: 'Auckland Owned' },
-            { num: '15+', label: 'Active Sites' }
-          ].map((stat, i) => (
-            <div key={i} className="flex flex-col">
-              <RevealText text={stat.num} delay={i * 100} className="text-4xl md:text-5xl font-light text-zinc-950 mb-2" />
-              <RevealText text={stat.label} delay={i * 100 + 50} className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-zinc-400 font-semibold" />
-            </div>
-          ))}
+        {/* Abstract Hero Background Illustration */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] opacity-10 pointer-events-none z-0">
+          <svg viewBox="0 0 100 100" className="w-full h-full animate-pulse" style={{ animationDuration: '8s' }}>
+            <circle cx="50" cy="50" r="40" fill="none" stroke="white" strokeWidth="0.2" />
+            <circle cx="50" cy="50" r="30" fill="none" stroke="white" strokeWidth="0.2" strokeDasharray="2,2" />
+            <line x1="10" y1="50" x2="90" y2="50" stroke="white" strokeWidth="0.1" />
+            <line x1="50" y1="10" x2="50" y2="90" stroke="white" strokeWidth="0.1" />
+          </svg>
         </div>
-      </Section>
 
-      {/* Infinite Marquee Section - Perfectly Seamless Loop */}
-      <section className="py-8 bg-zinc-950 text-white overflow-hidden flex border-y border-zinc-800 w-full relative">
-        <div className="animate-marquee text-[10px] md:text-sm tracking-[0.3em] uppercase font-semibold text-zinc-400 items-center">
-          {/* First Block */}
-          <div className="flex shrink-0 items-center">
-            {marqueeItems.map((item, idx) => (
-              <React.Fragment key={idx}>
-                <span className="mx-8 whitespace-nowrap">{item}</span>
-                <span className="mx-8 opacity-30 shrink-0">•</span>
-              </React.Fragment>
-            ))}
+        <div className="relative z-10 w-full">
+          <div className="inline-flex items-center gap-3 border border-white/10 bg-white/5 px-5 py-2 rounded-none text-[9px] font-semibold uppercase tracking-[0.3em] text-[#aaa] page-enter stagger-1 mb-6">
+            <Zap size={10} className="text-white" /> Global Architectural Studio
           </div>
-          {/* Exact Duplicate Block for Seamless Looping */}
-          <div className="flex shrink-0 items-center">
-            {marqueeItems.map((item, idx) => (
-              <React.Fragment key={`dup-${idx}`}>
-                <span className="mx-8 whitespace-nowrap">{item}</span>
-                <span className="mx-8 opacity-30 shrink-0">•</span>
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Process Section (Conversion Factor: Transparency) */}
-      <Section className="bg-[#fafafa]">
-        <RevealText text="METHODOLOGY" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-20" />
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
-          {processData.map((process, idx) => (
-            <div key={idx} className="border-t border-zinc-200 pt-8 group">
-              <RevealText text={process.step} delay={idx * 100} className="text-5xl font-thin text-zinc-300 mb-8 group-hover:text-zinc-950 transition-colors duration-500" />
-              <RevealText text={process.title} delay={idx * 100 + 50} className="text-2xl font-light text-zinc-950 mb-4" />
-              <RevealText text={process.desc} delay={idx * 100 + 100} className="text-zinc-500 font-light leading-relaxed text-sm md:text-base" />
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      {/* Signature Details (Interactive Hover Gallery) */}
-      <Section className="bg-white border-t border-zinc-200" innerClassName="flex flex-col lg:flex-row gap-16 lg:gap-24 items-center">
-        <div className="w-full lg:w-1/2 flex flex-col justify-center">
-          <RevealText text="SIGNATURE FINISHES" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-12" />
-          <div className="flex flex-col gap-8">
-            {signatureDetails.map((detail, idx) => (
-              <div 
-                key={idx} 
-                onMouseEnter={() => setActiveDetail(idx)}
-                className="cursor-pointer group border-b border-zinc-100 pb-8 last:border-0"
-              >
-                <h3 className={`text-4xl md:text-5xl lg:text-6xl font-light tracking-tight transition-colors duration-500 ${activeDetail === idx ? 'text-zinc-950' : 'text-zinc-300 group-hover:text-zinc-400'}`}>
-                  {detail.title}
-                </h3>
-                <div className={`overflow-hidden transition-all duration-500 ease-out ${activeDetail === idx ? 'max-h-40 mt-6 opacity-100' : 'max-h-0 opacity-0'}`}>
-                  <p className="text-zinc-500 font-light max-w-sm leading-relaxed">{detail.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="w-full lg:w-1/2 h-[500px] md:h-[700px] overflow-hidden relative bg-zinc-100 rounded-3xl shadow-sm">
-          {signatureDetails.map((detail, idx) => (
-            <img 
-              key={idx}
-              src={detail.image} 
-              alt={detail.title} 
-              className={`absolute inset-0 w-full h-full object-cover transition-all duration-1000 ease-[cubic-bezier(0.16,1,0.3,1)] ${activeDetail === idx ? 'opacity-100 scale-100 z-10' : 'opacity-0 scale-105 z-0'}`}
-            />
-          ))}
-        </div>
-      </Section>
-
-      {/* Interactive Project Roster */}
-      <Section className="bg-zinc-950 text-white relative" innerClassName="relative z-10">
-        <div className="mb-20 flex justify-between items-end">
-          <RevealText text="SELECTED WORKS" className="text-xs tracking-[0.3em] uppercase text-zinc-500 font-semibold" />
-          <Interactive onClick={() => navigate('projects')} className="hidden md:flex items-center gap-2 cursor-pointer text-zinc-400 hover:text-white transition-colors">
-            <span className="text-xs tracking-[0.2em] uppercase font-semibold">View Full Portfolio</span>
-          </Interactive>
-        </div>
-
-        <div className="border-t border-zinc-800">
-          {projectsData.map((project, idx) => (
-            <Interactive key={project.id} onClick={() => navigate('projects')}>
-              <div 
-                className="group flex flex-col md:flex-row justify-between items-start md:items-center py-10 md:py-16 border-b border-zinc-800 cursor-pointer relative"
-                onMouseEnter={() => setHoveredProject(project.image)}
-              >
-                {/* Hover Image Reveal for Mobile (Smoothly Animated) */}
-                <div className="md:hidden w-full overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] max-h-0 opacity-0 group-hover:max-h-[500px] group-hover:opacity-100 group-hover:mb-6 rounded-2xl">
-                  <img src={project.image} alt={project.title} className="w-full h-64 object-cover" />
-                </div>
-
-                <RevealText text={`0${idx + 1}`} className="text-sm tracking-[0.2em] text-zinc-600 mb-4 md:mb-0 md:w-24" />
-                
-                <div className="flex-1 flex flex-col md:flex-row md:items-center justify-between w-full">
-                  <h3 className="text-3xl md:text-5xl lg:text-6xl font-light tracking-tight transform group-hover:translate-x-4 transition-all duration-500 ease-out text-zinc-300 group-hover:text-white inline-block">{project.title}</h3>
-                  <div className="flex items-center gap-8 mt-4 md:mt-0 text-zinc-500 group-hover:text-zinc-300 transition-colors duration-500">
-                    <span className="text-[10px] md:text-xs tracking-widest uppercase font-semibold">{project.location}</span>
-                    <ArrowUpRight className="w-6 h-6 opacity-0 -translate-y-4 translate-x-4 group-hover:opacity-100 group-hover:translate-y-0 group-hover:translate-x-0 transition-all duration-500 ease-out hidden md:block" />
-                  </div>
-                </div>
-              </div>
-            </Interactive>
-          ))}
-        </div>
-        
-        {/* Floating Desktop Image Follower (Bulletproof Crossfade) */}
-        <div className="hidden md:block absolute top-1/2 right-0 -translate-y-1/2 w-[35vw] max-w-[500px] h-[60vh] max-h-[700px] pointer-events-none overflow-hidden rounded-3xl z-0 shadow-2xl">
-          {projectsData.map((proj) => (
-            <img 
-              key={proj.id}
-              src={proj.image} 
-              alt={proj.title} 
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ease-out ${hoveredProject === proj.image ? 'opacity-80' : 'opacity-0'}`}
-            />
-          ))}
-        </div>
-      </Section>
-
-      {/* Services Minimal */}
-      <Section className="bg-white">
-        <RevealText text="EXPERTISE" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-20" />
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-16">
-          {servicesData.map((service, idx) => (
-            <Interactive key={idx} onClick={() => navigate('services')} className="group cursor-pointer flex flex-col h-full">
-              <div className="w-full aspect-[4/5] md:h-[450px] overflow-hidden mb-8 bg-zinc-100 rounded-3xl shadow-sm">
-                <img src={service.image} className="w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-[1.5s] ease-out" alt={service.title} />
-              </div>
-              <RevealText text={service.title} className="text-2xl font-light mb-4 text-zinc-950 border-b border-zinc-200 pb-4 flex justify-between items-center group-hover:border-zinc-950 transition-colors duration-500">
-                  {service.title}
-                  <ArrowRight className="w-4 h-4 opacity-0 -translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-500" />
-              </RevealText>
-              <RevealText text={service.desc} delay={100} className="text-zinc-500 font-light leading-relaxed text-sm md:text-base" />
-            </Interactive>
-          ))}
-        </div>
-      </Section>
-
-      {/* Testimonial Section (Social Proof) */}
-      <Section className="bg-zinc-50 border-t border-zinc-200" innerClassName="flex flex-col items-center text-center">
-        <div className="max-w-5xl">
-          <RevealText text="CLIENT PERSPECTIVE" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-16" />
-          <RevealText text="“Pillar Properties delivered our architectural build flawlessly. Their transparency regarding costs and absolute refusal to compromise on finish quality set them apart in the Auckland market.”" className="text-2xl md:text-4xl lg:text-5xl font-light text-zinc-950 leading-snug tracking-tight mb-12" delay={100} />
-          <div className="flex flex-col items-center">
-             <RevealText text="Sarah & James T." className="text-sm tracking-widest uppercase font-semibold text-zinc-950 mb-1" delay={200} />
-             <RevealText text="Epsom Custom Build" className="text-xs tracking-widest uppercase text-zinc-400" delay={300} />
-          </div>
-        </div>
-      </Section>
-
-      {/* Cinematic Video Teaser */}
-      <section className="py-12 md:py-24 px-[3%] bg-[#fafafa]">
-        <div className="max-w-[1600px] mx-auto relative h-[60vh] md:h-[80vh] overflow-hidden group rounded-[2rem] md:rounded-[3rem] bg-zinc-950 w-full shadow-lg">
-          <UnveilVideo 
-            src="https://cdn.coverr.co/videos/coverr-walking-through-a-modern-house-2525/1080p.mp4" 
-            className="absolute inset-0 w-full h-full opacity-70 group-hover:opacity-100 group-hover:scale-105 transition-all duration-[3s] ease-out pointer-events-none"
-          />
-          <div className="absolute inset-0 flex items-center justify-center z-10">
-            <Interactive>
-              <button className="w-24 h-24 md:w-32 md:h-32 rounded-full border border-white/30 backdrop-blur-md flex flex-col items-center justify-center group-hover:bg-white text-white group-hover:text-zinc-950 transition-all duration-500 hover:scale-110">
-                <Play className="w-6 h-6 md:w-8 md:h-8 mb-1 ml-1" fill="currentColor" />
-                <span className="text-[10px] tracking-[0.2em] uppercase font-semibold mt-1">Play Reel</span>
-              </button>
-            </Interactive>
-          </div>
-          <div className="absolute bottom-10 left-6 md:left-12 z-10 pointer-events-none">
-            <RevealText text="THE PILLAR DIFFERENCE" className="text-xs tracking-[0.3em] uppercase text-white/70 font-semibold mb-3" />
-            <RevealText text="Watch our brand film." className="text-2xl md:text-3xl font-light text-white" delay={100} />
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ Accordion Section */}
-      <Section className="bg-white">
-        <div className="w-[90%] mx-auto">
-          <RevealText text="FREQUENTLY ASKED" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-16" />
-          <div className="border-t border-zinc-200">
-            {faqData.map((faq, idx) => (
-              <Accordion 
-                key={idx} 
-                question={faq.q} 
-                answer={faq.a} 
-                isOpen={openFaqIndex === idx}
-                onClick={() => setOpenFaqIndex(openFaqIndex === idx ? null : idx)}
-              />
-            ))}
-          </div>
-        </div>
-      </Section>
-
-      {/* Insights / Journal Section */}
-      <Section className="bg-zinc-50 border-t border-zinc-200">
-        <div className="flex justify-between items-end mb-20">
-          <RevealText text="JOURNAL & INSIGHTS" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold" />
-          <Interactive className="hidden md:flex items-center gap-2 cursor-pointer text-zinc-950 hover:opacity-50 transition-opacity">
-            <span className="text-xs tracking-[0.2em] uppercase font-semibold">Read All</span>
-          </Interactive>
-        </div>
-        <div className="grid md:grid-cols-3 gap-12">
-          {insightsData.map((insight, idx) => (
-            <Interactive key={idx} className="group cursor-pointer border-t border-zinc-200 pt-8">
-              <div className="flex justify-between items-center mb-6">
-                <RevealText text={insight.category} delay={idx * 100} className="text-[10px] tracking-widest uppercase font-semibold text-zinc-400" />
-                <RevealText text={insight.date} delay={idx * 100 + 50} className="text-[10px] tracking-widest uppercase font-semibold text-zinc-400" />
-              </div>
-              <RevealText text={insight.title} delay={idx * 100 + 100} className="text-2xl font-light text-zinc-950 group-hover:text-zinc-500 transition-colors duration-500 pr-8" />
-            </Interactive>
-          ))}
-        </div>
-      </Section>
-
-      {/* NEW: Partner / Press Section */}
-      <Section className="bg-white border-t border-zinc-200 text-center" noVerticalPadding>
-         <div className="py-24 md:py-32">
-            <RevealText text="AS FEATURED IN" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-12" />
-            <div className="flex flex-wrap justify-center items-center gap-12 md:gap-24 opacity-50 grayscale">
-                <span className="text-2xl md:text-3xl font-bold tracking-tighter">ArchDigest</span>
-                <span className="text-2xl md:text-3xl font-serif italic">Home & Garden</span>
-                <span className="text-2xl md:text-3xl font-light uppercase tracking-widest">Dwell</span>
-                <span className="text-2xl md:text-3xl font-black tracking-tight">VOGUE<span className="font-light">LIVING</span></span>
-            </div>
-         </div>
-      </Section>
-
-      {/* Massive CTA Section */}
-      <Section className="bg-[#fafafa] border-t border-zinc-200" innerClassName="flex flex-col items-center text-center">
-        <RevealText text="START YOUR PROJECT" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-8" />
-        <Interactive onClick={() => navigate('contact')}>
-          <h2 className="text-6xl md:text-8xl lg:text-[10vw] font-light tracking-tighter cursor-pointer hover:opacity-50 transition-opacity duration-500 text-zinc-950 mb-12 leading-none">
-            Let's Talk.
-          </h2>
-        </Interactive>
-        <p className="text-zinc-500 text-lg md:text-xl font-light max-w-md">Schedule a complimentary consultation to discuss your land, vision, or investment strategy.</p>
-      </Section>
-    </div>
-  );
-};
-
-const AboutPage = () => (
-  <div className="animate-in fade-in duration-1000 bg-white min-h-screen pt-32 md:pt-48 pb-32">
-    <Section noVerticalPadding>
-      <RevealText text="OUR STORY" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-8" />
-      <RevealText text="Building foundations" className="text-5xl md:text-7xl font-light tracking-tight text-zinc-950" />
-      <RevealText text="for the future." className="text-5xl md:text-7xl font-light tracking-tight text-zinc-950 mb-24" delay={100} />
-
-      <div className="grid lg:grid-cols-2 gap-16 items-start mb-32">
-        <div>
-          <RevealText text="Pillar Properties Ltd is a premier residential development and construction company based in the heart of Auckland." className="text-2xl font-light text-zinc-950 leading-relaxed mb-8" />
-          <RevealText text="While our brand name is new to the market, the foundation of our company is built on extensive industry experience. For over seven years, our dedicated team has been instrumental in delivering more than 600 homes across the region." className="text-lg text-zinc-500 font-light leading-relaxed mb-8" delay={100} />
-          <RevealText text="We don't just build houses; we design, develop, build, and manage high-quality homes that cater to modern lifestyles. Our core philosophy ensures that every project we undertake is functional, aesthetically pleasing, and above all, affordable without compromising on the premium feel." className="text-lg text-zinc-500 font-light leading-relaxed" delay={200} />
-        </div>
-        <div className="w-full h-[400px] md:h-[600px] rounded-3xl overflow-hidden shadow-sm">
-          <UnveilImage src="https://images.unsplash.com/photo-1503387762-592deb58ef4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" alt="Architectural Structure" className="w-full h-full object-cover" />
-        </div>
-      </div>
-
-      <RevealText text="CORE PHILOSOPHY" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-16" />
-      <div className="grid md:grid-cols-3 gap-12 border-t border-zinc-200 pt-16">
-        {valuesData.map((val, idx) => (
-          <div key={idx}>
-            <RevealText text={val.num} className="text-4xl font-thin text-zinc-300 mb-6" />
-            <RevealText text={val.title} className="text-2xl font-light text-zinc-950 mb-4" />
-            <RevealText text={val.desc} className="text-zinc-500 font-light leading-relaxed" />
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-40">
-        <RevealText text="LEADERSHIP" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-16" />
-        <div className="grid md:grid-cols-3 gap-12 border-t border-zinc-200 pt-16">
-          {teamData.map((member, idx) => (
-            <Interactive key={idx} className="group">
-              <div className="w-full aspect-[3/4] overflow-hidden mb-6 bg-zinc-100 rounded-3xl shadow-sm">
-                <img src={member.image} alt={member.name} className="w-full h-full object-cover grayscale opacity-80 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700 ease-out" />
-              </div>
-              <RevealText text={member.name} className="text-2xl font-light text-zinc-950 mb-1" />
-              <RevealText text={member.role} className="text-xs tracking-widest uppercase text-zinc-400 font-semibold" delay={100} />
-            </Interactive>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-40">
-        <RevealText text="MILESTONES" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-16" />
-        <div className="border-t border-zinc-200 pt-16 space-y-16">
-          {milestonesData.map((milestone, idx) => (
-            <div key={idx} className="grid md:grid-cols-4 gap-8 md:gap-12 items-start group">
-              <RevealText text={milestone.year} className="text-4xl md:text-5xl font-thin text-zinc-300 group-hover:text-zinc-950 transition-colors duration-500" />
-              <div className="md:col-span-3 border-l border-zinc-200 pl-8 md:pl-12">
-                <RevealText text={milestone.title} className="text-2xl font-light text-zinc-950 mb-4" />
-                <RevealText text={milestone.desc} className="text-zinc-500 font-light leading-relaxed max-w-2xl" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-40">
-        <RevealText text="RECOGNITION" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-16" />
-        <div className="grid md:grid-cols-3 gap-8 border-t border-zinc-200 pt-16">
-          {awardsData.map((award, idx) => (
-            <div key={idx} className="bg-[#fafafa] p-8 md:p-12 rounded-3xl border border-zinc-100 hover:border-zinc-300 transition-colors duration-500">
-              <RevealText text={award.year} className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-semibold mb-6" />
-              <RevealText text={award.title} className="text-xl md:text-2xl font-light text-zinc-950 mb-4" />
-              <RevealText text={award.category} className="text-sm text-zinc-500 font-light" />
-            </div>
-          ))}
-        </div>
-      </div>
-    </Section>
-
-    <Section className="bg-zinc-950 text-white mt-32 md:mt-40 rounded-[2rem] md:rounded-[3rem] shadow-xl mx-4 md:mx-12 lg:mx-16" innerClassName="flex flex-col md:flex-row gap-16 items-center">
-      <div className="w-full md:w-1/2">
-        <RevealText text="SUSTAINABILITY" className="text-xs tracking-[0.3em] uppercase text-zinc-500 font-semibold mb-8" />
-        <RevealText text="Building for the next century." className="text-4xl md:text-6xl font-light tracking-tight mb-8 text-zinc-200" />
-        <RevealText text="Our commitment extends beyond aesthetics. We integrate passive heating, solar readiness, and ethically sourced timber into our standard specifications, ensuring a minimal footprint and maximum efficiency." className="text-lg text-zinc-400 font-light leading-relaxed mb-8" delay={100} />
-      </div>
-      <div className="w-full md:w-1/2 h-[400px] rounded-3xl overflow-hidden">
-          <UnveilImage src="https://images.unsplash.com/photo-1518780664697-55e3ad937233?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" alt="Sustainable details" className="w-full h-full object-cover opacity-80" />
-      </div>
-    </Section>
-
-    {/* NEW: Culture & Community */}
-    <Section className="bg-white mt-32 md:mt-40">
-      <RevealText text="CULTURE" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-8" />
-      <div className="grid md:grid-cols-2 gap-16 items-center">
-        <div className="order-2 md:order-1 h-[400px] md:h-[500px] rounded-3xl overflow-hidden shadow-sm">
-           <UnveilImage src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" alt="Team Culture" className="w-full h-full object-cover" />
-        </div>
-        <div className="order-1 md:order-2">
-          <RevealText text="Beyond the blueprint." className="text-4xl md:text-6xl font-light tracking-tight text-zinc-950 mb-8" />
-          <RevealText text="We foster a collaborative environment where architects, project managers, and builders work side-by-side. Our commitment extends to the local Auckland community through active sponsorship of sustainable design initiatives and youth trade apprenticeships." className="text-lg text-zinc-500 font-light leading-relaxed" />
-        </div>
-      </div>
-    </Section>
-
-    <Section className="bg-[#fafafa] border-t border-zinc-200 mt-32 md:mt-40 text-center" innerClassName="flex flex-col items-center">
-        <RevealText text="CAREERS" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-8" />
-        <RevealText text="Build with us." className="text-5xl md:text-7xl font-light tracking-tight text-zinc-950 mb-8" />
-        <RevealText text="We are always looking for visionary architects, rigorous project managers, and master builders to join our growing team." className="text-xl text-zinc-500 font-light max-w-2xl leading-relaxed mb-12" delay={100} />
-        <Interactive>
-          <button className="bg-zinc-950 text-white px-8 py-4 text-xs tracking-[0.2em] uppercase font-semibold rounded-full hover:bg-zinc-800 transition-colors flex items-center gap-2">
-            View Open Positions <ArrowRight className="w-4 h-4" />
-          </button>
-        </Interactive>
-    </Section>
-  </div>
-);
-
-const ServicesPage = () => (
-  <div className="animate-in fade-in duration-1000 bg-[#fafafa] min-h-screen pt-32 md:pt-48 pb-32">
-    <Section noVerticalPadding>
-      <RevealText text="OUR EXPERTISE" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-8" />
-      <RevealText text="End-to-end" className="text-5xl md:text-7xl font-light tracking-tight text-zinc-950" />
-      <RevealText text="development." className="text-5xl md:text-7xl font-light tracking-tight text-zinc-950 mb-32" delay={100} />
-
-      <div className="space-y-32">
-        {servicesData.map((service, idx) => (
-          <div key={idx} className={`flex flex-col ${idx % 2 === 1 ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-16 lg:gap-24`}>
-            <div className="w-full lg:w-1/2 h-[400px] md:h-[500px] rounded-3xl overflow-hidden shadow-sm">
-              <UnveilImage src={service.image} alt={service.title} className="w-full h-full object-cover" />
-            </div>
-            <div className="w-full lg:w-1/2">
-              <RevealText text={`0${idx + 1}`} className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-6" />
-              <RevealText text={service.title} className="text-4xl md:text-5xl font-light text-zinc-950 mb-6" />
-              <RevealText text={service.desc} className="text-xl text-zinc-500 font-light leading-relaxed mb-8" />
-              <ul className="space-y-4 border-t border-zinc-200 pt-8">
-                {service.features?.map((item, i) => (
-                   <li key={i} className="flex items-center text-zinc-600 font-light">
-                      <span className="w-1.5 h-1.5 bg-zinc-950 rounded-full mr-4"></span>
-                      <RevealText text={item} delay={i * 50} />
-                   </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-40 border-t border-zinc-200 pt-32">
-        <RevealText text="THE PILLAR ADVANTAGE" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-16" />
-        <div className="grid md:grid-cols-2 gap-24">
-          <div>
-             <RevealText text="Why partner with us." className="text-4xl md:text-6xl font-light tracking-tight text-zinc-950 mb-8" />
-             <RevealText text="We eliminate the friction typically associated with property development. By consolidating design, consent, and construction under one roof, we drastically reduce timelines and mitigate financial risk." className="text-xl text-zinc-500 font-light leading-relaxed" delay={100} />
-          </div>
-          <div className="space-y-12">
-            {[
-              { label: 'Single Point of Contact', desc: 'No more juggling architects, engineers, and builders.' },
-              { label: 'Fixed Price Certainty', desc: 'Comprehensive scoping means no unexpected variations.' },
-              { label: 'Speed to Market', desc: 'Parallel processing of consents and procurement saves months.' }
-            ].map((adv, idx) => (
-              <div key={idx} className="border-b border-zinc-200 pb-8">
-                <RevealText text={adv.label} className="text-2xl font-light text-zinc-950 mb-2" delay={idx * 100} />
-                <RevealText text={adv.desc} className="text-zinc-500 font-light" delay={idx * 100 + 50} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* NEW: Featured Case Study */}
-      <div className="mt-40 border-t border-zinc-200 pt-32">
-        <RevealText text="CASE STUDY" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-16" />
-        <div className="bg-zinc-950 rounded-3xl overflow-hidden text-white flex flex-col md:flex-row shadow-xl">
-          <div className="w-full md:w-1/2 p-12 md:p-16 lg:p-24 flex flex-col justify-center">
-             <RevealText text="The Epsom Transformation" className="text-3xl md:text-5xl font-light tracking-tight mb-6" />
-             <RevealText text="How we took a subdivided 400sqm site and delivered a multi-award winning luxury family home within a strict 9-month timeframe, completely managing the resource consent process." className="text-zinc-400 font-light leading-relaxed mb-8" delay={100} />
-             <Interactive>
-               <button className="flex items-center gap-2 text-xs tracking-widest uppercase font-semibold hover:text-zinc-300 transition-colors">
-                 Read Full Study <ArrowRight className="w-4 h-4" />
-               </button>
-             </Interactive>
-          </div>
-          <div className="w-full md:w-1/2 h-[400px] md:h-auto relative group">
-             <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80" alt="Case Study" className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-[2s] ease-out" />
-          </div>
-        </div>
-      </div>
-    </Section>
-
-    <Section className="bg-zinc-50 border-t border-zinc-200 mt-32 md:mt-40 text-center">
-      <RevealText text="OUR PARTNERS" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-16 text-center" />
-      <div className="grid md:grid-cols-3 gap-12 text-center">
-        {[
-          { title: 'Private Homebuyers', desc: 'Families looking for bespoke, architectural standalone homes.' },
-          { title: 'Property Investors', desc: 'Individuals seeking high-yield, low-maintenance townhouses.' },
-          { title: 'Landowners', desc: 'Owners looking to unlock the equity in their land via subdivision.' }
-        ].map((type, idx) => (
-            <div key={idx}>
-              <RevealText text={type.title} className="text-2xl font-light text-zinc-950 mb-4" />
-              <RevealText text={type.desc} className="text-zinc-500 font-light leading-relaxed" />
-            </div>
-        ))}
-      </div>
-    </Section>
-  </div>
-);
-
-const ProjectsPage = () => (
-  <div className="animate-in fade-in duration-1000 bg-[#fafafa] min-h-screen pt-32 md:pt-48 pb-32">
-    <Section noVerticalPadding>
-      <RevealText text="PORTFOLIO" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-8" />
-      <RevealText text="Selected Works." className="text-5xl md:text-7xl font-light tracking-tight text-zinc-950 mb-24" />
-
-      <div className="grid md:grid-cols-2 gap-x-12 gap-y-24">
-        {projectsData.map((project, idx) => (
-          <Interactive key={project.id} className="group cursor-pointer">
-            <div className={`w-full ${idx % 2 === 1 ? 'md:mt-32' : ''}`}>
-              <UnveilImage src={project.image} alt={project.title} className="w-full aspect-[4/5] md:aspect-[3/4] mb-8 rounded-3xl shadow-sm" />
-              <div className="flex justify-between items-start border-t border-zinc-200 pt-6">
-                <div>
-                  <h3 className="text-2xl font-light text-zinc-950 mb-2">{project.title}</h3>
-                  <p className="text-zinc-500 text-sm">{project.location}</p>
-                </div>
-                <span className="text-xs tracking-widest uppercase text-zinc-400 font-semibold">{project.status}</span>
-              </div>
-            </div>
-          </Interactive>
-        ))}
-      </div>
-
-      <div className="mt-40 pt-32 border-t border-zinc-200">
-        <RevealText text="ON THE HORIZON" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-16" />
-        <RevealText text="Future Developments." className="text-4xl md:text-6xl font-light tracking-tight text-zinc-950 mb-16" />
-        
-        <div className="flex flex-col">
-          {futureProjectsData.map((proj, idx) => (
-            <div key={idx} className="group flex flex-col md:flex-row justify-between items-start md:items-center py-8 border-b border-zinc-200 hover:bg-zinc-50 transition-colors px-4 -mx-4 cursor-default">
-              <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-12 w-full">
-                <RevealText text={proj.title} delay={idx * 50} className="text-2xl md:text-3xl font-light text-zinc-950" />
-                <RevealText text={proj.location} delay={idx * 50 + 50} className="text-sm tracking-widest uppercase text-zinc-500 font-semibold" />
-              </div>
-              <div className="mt-4 md:mt-0 flex-shrink-0">
-                <RevealText text={`Expected ${proj.expected}`} delay={idx * 50 + 100} className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-semibold bg-white border border-zinc-200 px-4 py-2 rounded-full" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* NEW: Project Statistics / Impact */}
-      <div className="mt-40 pt-32 border-t border-zinc-200">
-         <RevealText text="OUR IMPACT" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-16" />
-         <div className="grid md:grid-cols-4 gap-12 bg-zinc-950 rounded-3xl p-12 lg:p-16 text-white shadow-xl">
-            {[
-              { val: '$200M+', label: 'Gross Development Value' },
-              { val: '600+', label: 'Dwellings Completed' },
-              { val: '12', label: 'Suburbs Transformed' },
-              { val: '100%', label: 'Delivery Rate' }
-            ].map((stat, idx) => (
-              <div key={idx} className="flex flex-col">
-                <RevealText text={stat.val} delay={idx * 100} className="text-4xl md:text-5xl lg:text-6xl font-light text-zinc-200 mb-4" />
-                <RevealText text={stat.label} delay={idx * 100 + 50} className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-zinc-500 font-semibold" />
-              </div>
-            ))}
-         </div>
-      </div>
-    </Section>
-  </div>
-);
-
-const GalleryPage = () => (
-  <div className="animate-in fade-in duration-1000 bg-[#fafafa] min-h-screen pt-32 md:pt-48 pb-32">
-    <Section noVerticalPadding>
-      <RevealText text="GALLERY" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-8" />
-      <RevealText text="Visual Archive." className="text-5xl md:text-7xl font-light tracking-tight text-zinc-950 mb-24" />
-
-      <div className="columns-1 md:columns-2 lg:columns-3 gap-6 space-y-6">
-        {galleryData.map((src, idx) => (
-          <Interactive key={idx} className="break-inside-avoid relative group overflow-hidden block rounded-2xl md:rounded-3xl bg-zinc-200 shadow-sm">
-            <UnveilImage src={src} alt={`Gallery Image ${idx + 1}`} className="w-full h-auto object-cover transition-transform duration-[2.5s] group-hover:scale-105 ease-[cubic-bezier(0.16,1,0.3,1)]" />
-            <div className="absolute inset-0 bg-zinc-950/0 group-hover:bg-zinc-950/30 transition-colors duration-500 flex items-center justify-center">
-              <Plus className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-all duration-500 transform scale-50 group-hover:scale-100" strokeWidth={1} />
-            </div>
-          </Interactive>
-        ))}
-      </div>
-
-      {/* NEW: Motion / Cinematic */}
-      <div className="mt-40 pt-32 border-t border-zinc-200">
-        <RevealText text="IN MOTION" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-16" />
-        <div className="w-full aspect-video md:h-[700px] rounded-3xl overflow-hidden relative group bg-zinc-950 shadow-sm">
-           <UnveilVideo 
-             src="https://cdn.coverr.co/videos/coverr-walking-through-a-modern-house-2525/1080p.mp4" 
-             className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity duration-1000"
-           />
-           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 transition-transform duration-500 group-hover:scale-110">
-                 <Play className="w-8 h-8 text-white ml-1" fill="currentColor" />
-              </div>
-           </div>
-        </div>
-      </div>
-    </Section>
-  </div>
-);
-  
-const ContactPage = () => {
-  // AI State
-  const [aiInput, setAiInput] = useState('');
-  const [aiOutput, setAiOutput] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [enquiryMessage, setEnquiryMessage] = useState('');
-  const [activeTab, setActiveTab] = useState('direct');
-
-  const handleGenerate = async () => {
-    if (!aiInput.trim()) return;
-    setIsGenerating(true);
-    setAiOutput('');
-    const result = await generateAIBrief(aiInput);
-    setAiOutput(result);
-    setIsGenerating(false);
-  };
-
-  const attachToEnquiry = () => {
-    setEnquiryMessage(`AI GENERATED BRIEF:\n${aiOutput}\n\nADDITIONAL NOTES:\n`);
-    setActiveTab('direct');
-  };
-
-  return (
-    <div className="animate-in fade-in duration-1000 bg-white min-h-screen pt-32 md:pt-48 pb-32">
-      <Section noVerticalPadding>
-        <div className="grid lg:grid-cols-2 gap-24">
           
-          {/* Left Column: Info & Tab Toggles */}
-          <div>
-            <RevealText text="CONTACT" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-8" />
-            <RevealText text="Start the" className="text-5xl md:text-7xl font-light tracking-tight text-zinc-950" />
-            <RevealText text="conversation." className="text-5xl md:text-7xl font-light tracking-tight text-zinc-950 mb-16" delay={100} />
-            
-            <div className="flex gap-8 border-b border-zinc-200 mb-12">
-              <Interactive>
-                <button 
-                  onClick={() => setActiveTab('direct')}
-                  className={`pb-4 text-xs tracking-[0.2em] uppercase font-semibold transition-colors relative ${activeTab === 'direct' ? 'text-zinc-950' : 'text-zinc-400 hover:text-zinc-600'}`}
-                >
-                  Direct Enquiry
-                  {activeTab === 'direct' && <span className="absolute bottom-0 left-0 w-full h-[1px] bg-zinc-950"></span>}
-                </button>
-              </Interactive>
-              <Interactive>
-                <button 
-                  onClick={() => setActiveTab('ai')}
-                  className={`pb-4 text-xs tracking-[0.2em] uppercase font-semibold transition-colors relative flex items-center gap-2 ${activeTab === 'ai' ? 'text-zinc-950' : 'text-zinc-400 hover:text-zinc-600'}`}
-                >
-                  ✨ AI Architect
-                  {activeTab === 'ai' && <span className="absolute bottom-0 left-0 w-full h-[1px] bg-zinc-950"></span>}
-                </button>
-              </Interactive>
+          <h1 className="font-display text-5xl md:text-7xl leading-[0.9] font-black uppercase tracking-tighter page-enter stagger-2 w-full text-white">
+            We Build <br/>
+            <span className="text-outline block ml-0 md:ml-20 mt-1 md:mt-0">The Future.</span>
+          </h1>
+          
+          <div className="grid-editorial w-full mt-12 page-enter stagger-3">
+            <div className="col-span-12 md:col-span-5 hidden md:block">
+               {/* Hero Supporting Image */}
+               <div className="w-full h-40 overflow-hidden border border-white/10 glass-panel p-2">
+                 <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop" alt="Architecture" className="w-full h-full object-cover img-monochrome" />
+               </div>
             </div>
+            <div className="col-span-12 md:col-start-7 md:col-span-6 flex flex-col items-start justify-end">
+              <p className="text-[#888] text-lg md:text-xl font-light leading-relaxed">
+                A premium monochromatic experience bridging MarTech, MarComms, and ITES since 2019.
+              </p>
+              <button onClick={() => navigateTo('contact')} className="mt-8 pb-2 border-b border-white text-xs uppercase tracking-[0.2em] font-bold hover:text-[#888] hover:border-[#888] transition-colors inline-flex items-center gap-2 group">
+                Initiate Project <ArrowRight size={14} className="group-hover:translate-x-2 transition-transform" />
+              </button>
+            </div>
+          </div>
+        </div>
 
-            <div className="space-y-12">
-              {[
-                { label: 'Visit', val: '123 Architecture Way\nAuckland CBD 1010' },
-                { label: 'Call', val: '+64 9 123 4567' },
-                { label: 'Email', val: 'info@pillarproperties.co.nz' }
-              ].map((item, idx) => (
-                <div key={idx} className="border-t border-zinc-200 pt-6">
-                  <RevealText text={item.label} className="text-xs tracking-[0.2em] uppercase text-zinc-400 font-semibold mb-4" />
-                  <RevealText text={item.val} className="text-xl md:text-2xl font-light text-zinc-950 whitespace-pre-line" delay={100} />
+        {/* Scroll Instruction */}
+        <div className="absolute bottom-8 left-6 hidden md:block animate-bounce">
+          <InstructionTag text="SCROLL TO DISCOVER" />
+        </div>
+      </section>
+
+      {/* SECTION 2: CLIENT MARQUEE */}
+      <section className="relative w-full overflow-hidden border-b border-white/5 py-8 reveal">
+        <div className="absolute left-0 top-0 bottom-0 w-24 md:w-48 bg-gradient-to-r from-[var(--bg-dark)] to-transparent z-10 pointer-events-none"></div>
+        <div className="absolute right-0 top-0 bottom-0 w-24 md:w-48 bg-gradient-to-l from-[var(--bg-dark)] to-transparent z-10 pointer-events-none"></div>
+        <div className="animate-marquee opacity-60 hover:opacity-100 transition-opacity duration-700">
+          <div className="flex gap-16 items-center pr-16">
+            {BRANDS.map((brand, idx) => (
+              <span key={idx} className="font-display text-2xl md:text-3xl font-black uppercase tracking-widest text-outline">
+                {brand}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 3: PHILOSOPHY */}
+      <section className="grid-editorial w-full py-20 md:py-28 border-b border-white/5 relative">
+        <SectionHeader kicker="Philosophy" />
+        
+        <div className="col-span-12 md:col-span-8 flex flex-col gap-8 mt-12 md:mt-0 reveal delay-100 relative z-10">
+          <h2 className="font-display text-3xl md:text-5xl leading-[1.1] font-bold uppercase tracking-tight">
+            We eliminate the noise. <br />
+            <span className="text-[#555]">We amplify the signal.</span>
+          </h2>
+          <div className="flex flex-col md:flex-row gap-8 mt-6">
+            <div className="w-full md:w-1/3">
+              <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=2069&auto=format&fit=crop" alt="Office Minimal" className="w-full aspect-[4/5] object-cover img-monochrome border border-white/10" />
+            </div>
+            <div className="w-full md:w-2/3 flex items-end">
+              <p className="text-lg md:text-xl text-[#888] font-light leading-relaxed border-l-2 border-white/20 pl-6">
+                In a world of digital clutter, true luxury is clarity. We craft uncompromised digital experiences that are stark, beautiful, and devastatingly effective.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 4: SERVICES */}
+      <section className="py-20 md:py-28 border-b border-white/5 reveal">
+        <div className="grid-editorial mb-12 items-end">
+          <SectionHeader kicker="Expertise" title="Capabilities" />
+          <div className="col-span-12 md:col-span-8 flex justify-start md:justify-end mt-6 md:mt-0 flex-col md:flex-row gap-4 md:items-end">
+            <InstructionTag text="HOVER TO REVEAL DETAILS" />
+            <button onClick={() => navigateTo('services')} className="text-[10px] uppercase tracking-[0.2em] text-[#888] hover:text-white transition-colors flex items-center gap-2">
+              View All Services <ChevronRight size={12} />
+            </button>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-white/10 border border-white/10 relative overflow-hidden">
+          {SERVICES.map((srv, idx) => (
+            <div key={srv.id} className="relative flex flex-col gap-6 p-8 bg-[var(--bg-dark)] hover:bg-white/[0.03] transition-all duration-500 group cursor-pointer overflow-hidden min-h-[320px]" onClick={() => navigateTo('services')}>
+              {/* Background Abstract Hover Image */}
+              <img src={srv.img} className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-10 img-monochrome transition-all duration-700 pointer-events-none" alt="" />
+              
+              <div className="flex justify-between items-start relative z-10">
+                <srv.icon className="text-[#555] group-hover:text-white transition-colors" size={24} />
+                <span className="text-[10px] font-mono text-[#555] group-hover:text-white transition-colors">{srv.id}</span>
+              </div>
+              <div className="mt-auto relative z-10 transform group-hover:-translate-y-2 transition-transform duration-500">
+                <h3 className="font-display text-xl font-bold uppercase tracking-tight leading-snug">{srv.title}</h3>
+                <p className="text-sm text-[#777] leading-relaxed mt-3 opacity-0 group-hover:opacity-100 transition-opacity duration-500 absolute">{srv.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* NEW SECTION 5: INTERACTIVE ARSENAL */}
+      <section className="py-20 md:py-28 border-b border-white/5 reveal">
+        <div className="grid-editorial mb-12 items-end">
+          <SectionHeader kicker="Arsenal" title="The Stack" />
+          <div className="col-span-12 md:col-span-8 flex justify-start md:justify-end mt-6 md:mt-0 flex-col md:flex-row gap-4 md:items-end">
+            <InstructionTag text="INTERACTIVE COMPONENT GRID" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-white/10 border border-white/10 tech-grid">
+          {TECH_STACK.map((tech, idx) => (
+             <div key={idx} className="tech-item bg-[var(--bg-dark)] p-8 md:p-12 border border-transparent transition-all duration-500 flex items-center justify-center relative cursor-default">
+               <h4 className="font-display text-xl md:text-3xl font-bold uppercase tracking-tighter text-[#666] transition-colors duration-500 hover:text-white text-center">
+                 {tech}
+               </h4>
+             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* SECTION 6: METHODOLOGY */}
+      <section className="py-20 md:py-28 border-b border-white/5 reveal">
+        <div className="grid-editorial mb-12 items-end">
+          <SectionHeader kicker="Methodology" title="Our Process" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-px bg-white/10 border border-white/10">
+          {PROCESS_STEPS.map((step, idx) => (
+            <div key={idx} className="bg-[var(--bg-dark)] p-10 flex flex-col gap-6 group hover:bg-white/[0.03] transition-colors">
+              <span className="text-[10px] font-mono text-[#555] group-hover:text-white transition-colors border-b border-white/10 pb-4">0{idx + 1}</span>
+              <h3 className="font-display text-lg font-bold uppercase tracking-tight text-white">{step.title}</h3>
+              <p className="text-sm text-[#777] leading-relaxed">{step.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* SECTION 7: SELECTED WORK */}
+      <section className="py-20 md:py-28 border-b border-white/5 reveal">
+        <div className="grid-editorial mb-12 items-end">
+          <SectionHeader kicker="Archive" title="Selected Work" />
+          <div className="col-span-12 md:col-span-8 flex justify-start md:justify-end mt-6 md:mt-0 gap-4 flex-col md:flex-row md:items-end">
+            <InstructionTag text="INTERACT FOR PREVIEW" />
+            <span className="text-[10px] uppercase tracking-[0.3em] text-[#555]">
+              2019 — 2026
+            </span>
+          </div>
+        </div>
+        
+        <div className="flex flex-col border-t border-white/10 relative">
+          {/* Dynamic Image Preview Background (Desktop only) */}
+          <div className="absolute right-8 top-0 bottom-0 w-[300px] pointer-events-none z-0 hidden lg:flex items-center justify-center">
+             {hoveredWork && (
+               <img 
+                 src={hoveredWork} 
+                 alt="Project Preview" 
+                 className="w-full aspect-[4/3] object-cover img-monochrome opacity-40 rounded-lg shadow-2xl transition-all duration-500" 
+                 style={{ animation: 'slideUpFade 0.4s ease-out forwards' }}
+               />
+             )}
+          </div>
+
+          {WORK.map((item, index) => (
+            <div 
+              key={item.id} 
+              onMouseEnter={() => setHoveredWork(item.img)}
+              onMouseLeave={() => setHoveredWork(null)}
+              className={`group flex flex-col md:flex-row justify-between md:items-center py-8 md:py-12 border-b border-white/10 cursor-pointer transition-all duration-500 hover:bg-white/[0.02] hover:pl-6 pr-6 reveal delay-${(index % 3) * 100} relative z-10`}
+            >
+              <div className="flex items-center gap-6 md:gap-16 w-full md:w-auto">
+                <span className="text-sm font-mono text-[#555] group-hover:text-white transition-colors">{item.id}</span>
+                <h3 className="font-display text-2xl md:text-4xl font-black uppercase tracking-tight text-outline group-hover:text-white transition-all">
+                  {item.title}
+                </h3>
+              </div>
+              <div className="flex items-center justify-between md:justify-end gap-8 mt-6 md:mt-0 w-full md:w-auto">
+                <span className="text-[10px] uppercase tracking-widest text-[#777]">{item.year} // {item.type}</span>
+                <div className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all bg-[var(--bg-dark)]">
+                  <ArrowUpRight size={18} className="transform group-hover:scale-110 group-hover:rotate-45 transition-transform" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* SECTION 8: STATS */}
+      <section className="grid-editorial py-20 md:py-28 border-b border-white/5 reveal relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-[0.03] pointer-events-none flex items-center justify-center">
+           <svg viewBox="0 0 200 200" className="w-[100%] h-[100%]">
+             <path d="M0 100 L200 100 M100 0 L100 200 M0 0 L200 200 M0 200 L200 0" stroke="white" strokeWidth="0.5" />
+             <circle cx="100" cy="100" r="50" fill="none" stroke="white" strokeWidth="0.5" />
+           </svg>
+        </div>
+
+        {[
+          { num: "7", label: "Years Active", suffix: "y" },
+          { num: "4", label: "Global Hubs", suffix: "x" },
+          { num: "99", label: "Client Retention", suffix: "%" },
+          { num: "0", label: "Compromises", suffix: ".0" }
+        ].map((stat, idx) => (
+          <div key={idx} className="col-span-6 md:col-span-3 flex flex-col gap-4 reveal relative z-10" style={{transitionDelay: `${idx * 100}ms`}}>
+            <p className="font-display text-5xl md:text-6xl leading-none font-black text-outline">{stat.num}<span className="text-2xl text-[#444] ml-2">{stat.suffix}</span></p>
+            <p className="text-[10px] uppercase tracking-[0.3em] text-[#777] border-t border-white/10 pt-4 w-full font-medium">{stat.label}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* NEW SECTION 9: LEADERSHIP (SINGLE PROFILE) */}
+      <section className="py-20 md:py-28 border-b border-white/5 reveal">
+        <div className="grid-editorial mb-16 items-end">
+          <SectionHeader kicker="Leadership" title="The Architect" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-16 items-center">
+          <div className="col-span-12 md:col-span-5 md:col-start-2 w-full aspect-[4/5] overflow-hidden bg-white/5 border border-white/10 relative group reveal">
+             <img src="https://images.unsplash.com/photo-1556157382-97eda2d62296?q=80&w=2070&auto=format&fit=crop" className="w-full h-full object-cover img-monochrome opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" alt="Anant Mishra" />
+          </div>
+          <div className="col-span-12 md:col-span-5 reveal delay-100 flex flex-col gap-6">
+             <InstructionTag text="FOUNDER & PRINCIPAL" />
+             <h3 className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tight text-white mt-4">Anant Mishra</h3>
+             <p className="text-[10px] uppercase tracking-[0.3em] text-[#777] border-b border-white/10 pb-6 mb-2">Since 2019</p>
+             <p className="text-lg text-[#888] font-light leading-relaxed">
+               Leading a global team of digital architects, Anant ensures that every platform integration, communication strategy, and IT service aligns with our philosophy of radical minimalism and uncompromising operational excellence.
+             </p>
+             <button onClick={() => navigateTo('about')} className="mt-4 pb-2 border-b border-white text-xs uppercase tracking-[0.2em] font-bold hover:text-[#888] hover:border-[#888] transition-colors inline-flex items-center gap-2 group w-max">
+                Read Full Story <ArrowRight size={14} className="group-hover:translate-x-2 transition-transform" />
+             </button>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 10: INTERACTIVE FAQ */}
+      <section className="py-20 md:py-28 border-b border-white/5 reveal">
+        <div className="grid-editorial mb-12 items-start">
+           <SectionHeader kicker="Operations" title="FAQ" />
+           <div className="col-span-12 md:col-span-8 flex flex-col border-t border-white/10">
+              {FAQS.map((faq, idx) => (
+                <div key={idx} className="border-b border-white/10 overflow-hidden reveal" style={{transitionDelay: `${idx * 100}ms`}}>
+                  <button 
+                    onClick={() => toggleFaq(idx)} 
+                    className="w-full py-8 flex justify-between items-center text-left hover:text-[#aaa] transition-colors focus:outline-none"
+                  >
+                    <h3 className="font-display text-lg md:text-xl font-bold uppercase tracking-tight">{faq.q}</h3>
+                    <div className="ml-4 flex-shrink-0 text-[#555]">
+                      {activeFaq === idx ? <Minus size={20} /> : <Plus size={20} />}
+                    </div>
+                  </button>
+                  <div 
+                    className="transition-all duration-500 ease-in-out"
+                    style={{ maxHeight: activeFaq === idx ? '200px' : '0px', opacity: activeFaq === idx ? 1 : 0 }}
+                  >
+                    <p className="pb-8 text-[#888] font-light leading-relaxed max-w-2xl">{faq.a}</p>
+                  </div>
                 </div>
               ))}
-            </div>
+           </div>
+        </div>
+      </section>
+
+      {/* SECTION 11: GLOBAL MAP */}
+      <section className="py-20 md:py-28 border-b border-white/5 reveal relative">
+        <div className="grid-editorial mb-12 items-end">
+          <SectionHeader kicker="Locations" title="Global Presence" />
+          <div className="col-span-12 md:col-span-8 flex flex-wrap gap-3 mt-6 md:mt-0 md:justify-end">
+            {LOCATIONS.map(loc => (
+              <button 
+                key={loc.id} onClick={() => setActiveLocation(loc)}
+                className={`px-6 py-3 text-[9px] uppercase tracking-[0.3em] font-bold transition-all duration-500 border ${
+                  activeLocation?.id === loc.id ? 'bg-white text-black border-white' : 'border-white/20 text-[#888] hover:border-white/50 hover:text-white'
+                }`}
+              >
+                {loc.name}
+              </button>
+            ))}
           </div>
+        </div>
 
-          {/* Right Column: Dynamic Form / AI Interface */}
-          <div className="lg:mt-32 bg-[#fafafa] p-8 md:p-16 border border-zinc-100 min-h-[600px] flex flex-col rounded-3xl shadow-sm">
-            {activeTab === 'direct' ? (
-              <form className="space-y-12 animate-in fade-in duration-500" onSubmit={(e) => e.preventDefault()}>
-                <div className="relative">
-                  <input type="text" placeholder="Name" required className="w-full bg-transparent border-b border-zinc-300 py-4 text-xl font-light text-zinc-950 placeholder-zinc-400 focus:outline-none focus:border-zinc-950 transition-colors" />
+        <div className="relative group w-[100vw] left-[50%] right-[50%] -ml-[50vw] -mr-[50vw]">
+          <GlobalMap onLocationSelect={setActiveLocation} activeLocation={activeLocation} />
+          
+          <div className={`absolute top-6 right-6 md:top-10 md:right-10 w-[85%] max-w-sm glass-panel p-8 flex flex-col transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] z-20 ${
+            activeLocation ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8 pointer-events-none'
+          }`}>
+            {activeLocation && (
+              <>
+                <div className="flex justify-between items-start mb-8 border-b border-white/10 pb-6">
+                  <Globe size={24} className="text-[#555]" />
+                  <button onClick={() => setActiveLocation(null)} className="p-2 hover:bg-white/10 transition-colors pointer-events-auto"><X size={18} /></button>
                 </div>
-                <div className="relative">
-                  <input type="email" placeholder="Email Address" required className="w-full bg-transparent border-b border-zinc-300 py-4 text-xl font-light text-zinc-950 placeholder-zinc-400 focus:outline-none focus:border-zinc-950 transition-colors" />
+                <div className="flex flex-col flex-grow">
+                  <p className="text-[10px] uppercase tracking-[0.4em] text-[#888] font-bold">{activeLocation.country}</p>
+                  <h3 className="font-display text-3xl font-black uppercase mt-3 text-outline">{activeLocation.name}</h3>
+                  <p className="text-sm text-[#aaa] leading-relaxed mt-6 font-light">{activeLocation.desc}</p>
                 </div>
-                <div className="relative">
-                  <select defaultValue="" className="w-full bg-transparent border-b border-zinc-300 py-4 text-xl font-light text-zinc-400 focus:outline-none focus:border-zinc-950 focus:text-zinc-950 transition-colors appearance-none cursor-pointer">
-                    <option value="" disabled>Nature of Enquiry</option>
-                    <option value="buy">Buying a Home</option>
-                    <option value="dev">Development Partnership</option>
-                    <option value="other">Other</option>
-                  </select>
+                <div className="mt-8 pt-6 border-t border-white/10 flex justify-between items-center">
+                   <span className="text-[10px] uppercase tracking-[0.3em] text-[#666]">Team Members</span>
+                   <span className="font-display text-xl font-bold">{activeLocation.team}</span>
                 </div>
-                <div className="relative">
-                  <textarea 
-                    value={enquiryMessage}
-                    onChange={(e) => setEnquiryMessage(e.target.value)}
-                    placeholder="Project Details" 
-                    rows={4} 
-                    required 
-                    className="w-full bg-transparent border-b border-zinc-300 py-4 text-xl font-light text-zinc-950 placeholder-zinc-400 focus:outline-none focus:border-zinc-950 transition-colors resize-none"
-                  ></textarea>
-                </div>
-                <Interactive>
-                  <button type="submit" className="w-full bg-zinc-950 text-white py-6 text-sm tracking-[0.2em] uppercase font-semibold hover:bg-zinc-800 transition-colors rounded-2xl">
-                    Submit Enquiry
-                  </button>
-                </Interactive>
-              </form>
-            ) : (
-              <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-8 duration-500">
-                <h3 className="text-2xl font-light text-zinc-950 mb-4">Vision to Reality.</h3>
-                <p className="text-zinc-500 font-light mb-8">Describe your ideal property, lifestyle requirements, or investment goals. Our AI Architect will instantly draft a preliminary project brief tailored to Auckland.</p>
-                
-                <textarea 
-                  value={aiInput}
-                  onChange={(e) => setAiInput(e.target.value)}
-                  placeholder="e.g. A 4-bedroom minimalist home in Epsom with a pool, focusing on natural light and concrete materials..." 
-                  rows={4} 
-                  className="w-full bg-transparent border-b border-zinc-300 py-4 text-xl font-light text-zinc-950 placeholder-zinc-400 focus:outline-none focus:border-zinc-950 transition-colors resize-none mb-8"
-                ></textarea>
-                
-                {!aiOutput && !isGenerating && (
-                  <Interactive>
-                    <button 
-                      onClick={handleGenerate}
-                      className="w-full bg-zinc-100 text-zinc-950 border border-zinc-200 py-6 text-sm tracking-[0.2em] uppercase font-semibold hover:bg-zinc-200 transition-colors flex justify-center items-center gap-2 rounded-2xl"
-                    >
-                      ✨ Generate Brief
-                    </button>
-                  </Interactive>
-                )}
-
-                {isGenerating && (
-                  <div className="flex justify-center items-center py-12">
-                    <div className="w-6 h-6 border-2 border-zinc-300 border-t-zinc-950 rounded-full animate-spin"></div>
-                    <span className="ml-4 text-xs tracking-widest uppercase text-zinc-400 font-semibold animate-pulse">Consulting Architect...</span>
-                  </div>
-                )}
-
-                {aiOutput && !isGenerating && (
-                  <div className="flex-1 flex flex-col animate-in fade-in duration-700">
-                    <div className="flex-1 bg-white p-6 border border-zinc-200 overflow-y-auto mb-8 rounded-2xl">
-                      <pre className="whitespace-pre-wrap font-sans text-sm text-zinc-600 leading-relaxed">
-                        {aiOutput}
-                      </pre>
-                    </div>
-                    <Interactive>
-                      <button 
-                        onClick={attachToEnquiry}
-                        className="w-full bg-zinc-950 text-white py-6 text-sm tracking-[0.2em] uppercase font-semibold hover:bg-zinc-800 transition-colors flex justify-center items-center gap-2 rounded-2xl"
-                      >
-                        Attach to Enquiry <ArrowRight className="w-4 h-4" />
-                      </button>
-                    </Interactive>
-                  </div>
-                )}
-              </div>
+              </>
             )}
           </div>
         </div>
-      </Section>
+      </section>
 
-      {/* Map & Locations Section */}
-      <Section className="bg-white border-t border-zinc-200 mt-16 md:mt-32" noVerticalPadding>
-        <div className="py-24 md:py-32 grid lg:grid-cols-3 gap-16 items-start">
-          <div className="lg:col-span-1">
-            <RevealText text="OUR LOCATIONS" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-8" />
-            <RevealText text="Find us across Auckland." className="text-4xl md:text-5xl font-light tracking-tight text-zinc-950 mb-12" />
-            
-            <div className="space-y-8">
-              <div>
-                <h4 className="text-lg font-medium text-zinc-950 mb-2">Head Office</h4>
-                <p className="text-sm text-zinc-500 font-light">123 Architecture Way<br/>Auckland CBD 1010</p>
-              </div>
-              <div className="border-t border-zinc-200 pt-8">
-                <h4 className="text-lg font-medium text-zinc-950 mb-4">Active Development Sites</h4>
-                <ul className="space-y-4">
-                  <li className="flex items-start gap-3 text-sm text-zinc-500 font-light">
-                    <MapPin className="w-4 h-4 mt-0.5 text-zinc-400 shrink-0" />
-                    Parnell Ascend, Parnell
-                  </li>
-                  <li className="flex items-start gap-3 text-sm text-zinc-500 font-light">
-                    <MapPin className="w-4 h-4 mt-0.5 text-zinc-400 shrink-0" />
-                    Orakei Basin Villas, Orakei
-                  </li>
-                  <li className="flex items-start gap-3 text-sm text-zinc-500 font-light">
-                    <MapPin className="w-4 h-4 mt-0.5 text-zinc-400 shrink-0" />
-                    Grey Lynn Urban, Grey Lynn
-                  </li>
-                  <li className="flex items-start gap-3 text-sm text-zinc-500 font-light">
-                    <MapPin className="w-4 h-4 mt-0.5 text-zinc-400 shrink-0" />
-                    Peninsula Terraces, Te Atatu
-                  </li>
-                </ul>
-              </div>
+      {/* SECTION 12: INSIGHTS/JOURNAL */}
+      <section className="py-20 md:py-28 border-b border-white/5 reveal">
+        <div className="grid-editorial mb-12 items-end">
+           <SectionHeader kicker="Journal" title="Latest Insights" />
+           <div className="col-span-12 md:col-span-8 flex justify-start md:justify-end mt-6 md:mt-0 gap-4 flex-col md:flex-row md:items-end">
+            <button className="text-[10px] uppercase tracking-[0.2em] text-[#888] hover:text-white transition-colors flex items-center gap-2">
+              Read All Articles <ChevronRight size={12} />
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-col border-t border-white/10">
+          {INSIGHTS.map((insight, idx) => (
+             <div key={idx} className="group flex flex-col md:flex-row justify-between md:items-center py-6 md:py-8 border-b border-white/10 cursor-pointer hover:bg-white/[0.02] hover:px-6 transition-all duration-500 reveal" style={{transitionDelay: `${idx * 100}ms`}}>
+               <div className="flex items-center gap-6 md:gap-12 w-full md:w-auto">
+                 <span className="text-[10px] font-mono text-[#555] uppercase">{insight.date}</span>
+                 <h3 className="font-display text-lg md:text-2xl font-bold uppercase tracking-tight group-hover:text-white text-[#ccc] transition-colors">{insight.title}</h3>
+               </div>
+               <div className="mt-4 md:mt-0 flex items-center gap-4 text-[10px] uppercase tracking-widest text-[#777] group-hover:text-white transition-colors">
+                  Read Article <ArrowUpRight size={14} className="transform group-hover:scale-125 transition-transform" />
+               </div>
+             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* SECTION 13: TESTIMONIAL */}
+      <section className="grid-editorial py-20 md:py-28 border-b border-white/5 reveal relative overflow-hidden">
+        {/* Quote Abstract Background */}
+        <div className="absolute -left-10 top-1/2 -translate-y-1/2 opacity-[0.02] pointer-events-none">
+          <Quote size={400} />
+        </div>
+
+        <div className="col-span-12 md:col-start-3 md:col-span-8 flex flex-col items-center text-center relative z-10">
+          <InstructionTag text="CLIENT FEEDBACK" />
+          <h3 className="font-display text-2xl md:text-4xl font-light italic leading-relaxed text-white mt-12">
+            "Liaisonit doesn't just build websites; they architect digital ecosystems. Their obsession with minimalism completely transformed our platform."
+          </h3>
+          <p className="mt-12 text-[10px] uppercase tracking-[0.4em] font-bold text-[#888]">
+            — Executive Director, <span className="text-white">LVMH Digital</span>
+          </p>
+        </div>
+      </section>
+
+      {/* SECTION 14: CTA */}
+      <section className="py-20 md:py-28 reveal">
+        <div className="flex flex-col items-center justify-center text-center gap-10 py-24 glass-panel group cursor-pointer hover:bg-white transition-colors duration-1000 relative overflow-hidden" onClick={() => navigateTo('contact')}>
+          {/* Hover Expanding Circle Illustration */}
+          <div className="absolute inset-0 bg-white scale-0 group-hover:scale-150 rounded-full transition-transform duration-[1.2s] ease-in-out z-0 origin-center pointer-events-none"></div>
+
+          <div className="relative z-10 flex flex-col items-center">
+            <InstructionTag text="INITIATE PROTOCOL" />
+            <h2 className="font-display text-5xl md:text-[6rem] font-black uppercase tracking-tighter leading-none group-hover:text-black transition-colors duration-1000 mt-8">
+              Let's <br /> <span className="text-outline group-hover:text-black group-hover:[-webkit-text-stroke:0px] transition-all duration-1000">Talk.</span>
+            </h2>
+            <div className="w-16 h-16 rounded-full border border-white/20 group-hover:border-black group-hover:bg-black text-white flex items-center justify-center transition-all duration-1000 mt-12">
+               <ArrowRight size={24} className="group-hover:translate-x-2 transition-transform duration-500" />
             </div>
           </div>
-          
-          <div className="lg:col-span-2 h-[400px] md:h-[600px] bg-zinc-100 rounded-3xl overflow-hidden shadow-sm relative grayscale-[50%] hover:grayscale-0 transition-all duration-700">
-            <iframe 
-              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d102148.9740618037!2d174.68652391054366!3d-36.86214309320956!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6d0d47e6736a4ceb%3A0x500ef6143a29917!2sAuckland%2C%20New%20Zealand!5e0!3m2!1sen!2sus!4v1709214000000!5m2!1sen!2sus" 
-              width="100%" 
-              height="100%" 
-              style={{ border: 0 }} 
-              allowFullScreen="" 
-              loading="lazy" 
-              referrerPolicy="no-referrer-when-downgrade"
-              className="absolute inset-0 w-full h-full object-cover"
-              title="Auckland Map"
-            ></iframe>
-          </div>
         </div>
-      </Section>
+      </section>
 
-      {/* NEW: Newsletter / Stay Connected */}
-      <Section className="bg-zinc-950 text-white border-t border-zinc-800 text-center" innerClassName="py-24 md:py-32 flex flex-col items-center">
-         <RevealText text="STAY UPDATED" className="text-xs tracking-[0.3em] uppercase text-zinc-500 font-semibold mb-8" />
-         <RevealText text="Subscribe to our journal." className="text-4xl md:text-5xl font-light tracking-tight text-white mb-8" />
-         <RevealText text="Get the latest insights on Auckland's property market, architectural trends, and exclusive early access to upcoming developments." className="text-zinc-400 font-light max-w-xl leading-relaxed mb-12" delay={100} />
-         
-         <form className="w-full max-w-md flex relative" onSubmit={(e) => e.preventDefault()}>
-           <input type="email" placeholder="Enter your email" className="w-full bg-transparent border-b border-zinc-700 py-4 text-white placeholder-zinc-500 focus:outline-none focus:border-white transition-colors pr-12" required />
-           <button type="submit" className="absolute right-0 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition-colors p-2">
-             <ArrowRight className="w-5 h-5" />
-           </button>
-         </form>
-      </Section>
-
-      {/* What Happens Next Section */}
-      <Section className="border-t border-zinc-200 bg-zinc-50 text-center">
-        <div className="max-w-5xl mx-auto">
-          <RevealText text="THE PROCESS" className="text-xs tracking-[0.3em] uppercase text-zinc-400 font-semibold mb-16 text-center" />
-          <RevealText text="What happens next?" className="text-4xl md:text-5xl font-light tracking-tight text-zinc-950 mb-20 text-center" />
-          
-          <div className="grid md:grid-cols-3 gap-12 relative">
-            {/* Desktop connecting line */}
-            <div className="hidden md:block absolute top-6 left-[15%] right-[15%] h-[1px] bg-zinc-200 -z-10"></div>
-            
-            {[
-              { step: '01', title: 'Review', desc: 'Our architecture and development team reviews your enquiry and initial requirements within 24 hours.' },
-              { step: '02', title: 'Consultation', desc: 'We schedule a complimentary 45-minute discovery call to discuss site feasibility and your architectural vision.' },
-              { step: '03', title: 'Proposal', desc: 'We present a high-level conceptual brief, projected timelines, and a structural fee estimate.' }
-            ].map((item, idx) => (
-              <div key={idx} className="relative flex flex-col items-center text-center px-6">
-                <div className="w-12 h-12 bg-white border border-zinc-200 rounded-full flex items-center justify-center text-xs tracking-widest font-semibold text-zinc-950 mb-8">
-                  <RevealText text={item.step} delay={idx * 100} />
-                </div>
-                <RevealText text={item.title} className="text-2xl font-light text-zinc-950 mb-4" delay={idx * 100 + 50} />
-                <RevealText text={item.desc} className="text-sm text-zinc-500 font-light leading-relaxed" delay={idx * 100 + 100} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
     </div>
   );
 };
 
-
-// --- MAIN APP COMPONENT ---
-
-export default function App() {
-  const [currentPage, setCurrentPage] = useState('home');
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
-
-  useEffect(() => {
-    const styleSheet = document.createElement("style");
-    styleSheet.type = "text/css";
-    styleSheet.innerText = ultraModernStyles;
-    document.head.appendChild(styleSheet);
-    
-    const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    return () => {
-      document.head.removeChild(styleSheet);
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'auto' });
-    setIsMenuOpen(false);
-  }, [currentPage]);
-
-  const navLinks = ['home', 'about', 'services', 'projects', 'gallery', 'contact'];
-
+const AboutPage = () => {
+  useScrollReveal();
   return (
-    <CursorContext.Provider value={{ isHovering, setIsHovering }}>
-      <div className="min-h-screen flex flex-col font-sans text-zinc-950 selection:bg-zinc-950 selection:text-white bg-[#fafafa] overflow-x-hidden relative">
-        
-        <CustomCursor />
+    <div className="flex flex-col gap-24 pt-24 md:pt-32 page-enter pb-24 w-full">
+      <section className="grid-editorial gap-y-10">
+        <SectionHeader kicker="Identity" />
+        <div className="col-span-12 md:col-span-8 reveal delay-100">
+          <InstructionTag text="ESTABLISHED 2019" />
+          <h1 className="font-display text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none mb-12 mt-6">
+            The <br/> <span className="text-outline">Agency</span>
+          </h1>
+          
+          <div className="mb-12 w-full h-[40vh] border border-white/10 glass-panel p-2 overflow-hidden relative group">
+            <img src="https://images.unsplash.com/photo-1497215728101-856f4ea42174?q=80&w=2070&auto=format&fit=crop" className="w-full h-full object-cover img-monochrome" alt="Office space" />
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-sm">
+               <InstructionTag text="LONDON HQ" />
+            </div>
+          </div>
 
-        {/* Minimal Header with Uniform Padding Container */}
-        <header className={`fixed w-full z-50 transition-all duration-700 ease-out px-[3%] ${scrolled ? 'py-2 md:py-4 bg-white/95 backdrop-blur-sm shadow-sm' : 'py-4 md:py-6'}`}>
-          <div className="w-full max-w-[1600px] mx-auto flex justify-between items-center">
+          <p className="text-2xl md:text-3xl text-[#fff] font-light leading-relaxed">
+            Liaisonit Studios is a collective of marketing and operations architects. We strip away the noise to build focused, high-performance MarTech and ITES ecosystems that command attention. 
+          </p>
+          <p className="text-lg text-[#888] font-light leading-relaxed mt-8 max-w-2xl border-l-2 border-white/20 pl-6">
+            Black and white isn't just a color palette; it's a philosophy of absolute clarity.
+          </p>
+        </div>
+      </section>
+
+      <section className="grid-editorial border-t border-white/10 pt-20 reveal">
+         <SectionHeader kicker="Principles" />
+         <div className="col-span-12 md:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-16">
+            <div className="reveal delay-100 flex flex-col gap-6">
+               <svg viewBox="0 0 100 100" className="w-12 h-12 stroke-white stroke-1 fill-none opacity-50">
+                 <rect x="20" y="20" width="60" height="60" />
+                 <line x1="50" y1="20" x2="50" y2="80" />
+                 <line x1="20" y1="50" x2="80" y2="50" />
+               </svg>
+               <div>
+                 <h3 className="font-display text-xl font-bold uppercase mb-4 text-outline">01. Radical Minimalism</h3>
+                 <p className="text-sm text-[#888] leading-relaxed">We believe every element on a screen must justify its existence. By removing the superfluous, we amplify the core message.</p>
+               </div>
+            </div>
+            <div className="reveal delay-200 flex flex-col gap-6">
+               <svg viewBox="0 0 100 100" className="w-12 h-12 stroke-white stroke-1 fill-none opacity-50">
+                 <circle cx="50" cy="50" r="30" />
+                 <circle cx="50" cy="50" r="10" />
+                 <path d="M50 0 L50 20 M50 80 L50 100 M0 50 L20 50 M80 50 L100 50" />
+               </svg>
+               <div>
+                 <h3 className="font-display text-xl font-bold uppercase mb-4 text-outline">02. Engineering Excellence</h3>
+                 <p className="text-sm text-[#888] leading-relaxed">Design is only as good as its execution. We build on modern, robust architectures ensuring blazing fast performance.</p>
+               </div>
+            </div>
+         </div>
+      </section>
+    </div>
+  );
+};
+
+const ServicesPage = () => {
+  useScrollReveal();
+  return (
+    <div className="flex flex-col pt-24 md:pt-32 page-enter pb-24 w-full">
+      <section className="grid-editorial mb-16">
+        <SectionHeader kicker="Expertise" />
+        <div className="col-span-12 md:col-span-8 reveal delay-100">
+          <InstructionTag text="WHAT WE DO" />
+          <h1 className="font-display text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none mt-6">
+            Our <br/> <span className="text-outline">Capabilities</span>
+          </h1>
+        </div>
+      </section>
+      
+      <div className="flex flex-col border-t border-white/10 reveal delay-200">
+        {SERVICES.map((srv, idx) => (
+          <div key={srv.id} className="group grid-editorial py-12 md:py-16 border-b border-white/10 cursor-pointer hover:bg-white/[0.02] transition-colors items-center reveal relative overflow-hidden">
             
-            {/* Logo */}
-            <div className="flex items-center z-10">
-              <Interactive onClick={() => setCurrentPage('home')}>
-                <img 
-                  src="https://static.wixstatic.com/media/548938_1509800225e542a4a2d4144aa68163e9~mv2.png" 
-                  alt="Pillar Properties" 
-                  className={`w-auto cursor-pointer object-contain transition-all duration-700 ${scrolled ? 'h-6 md:h-7' : 'h-7 md:h-9'} ${!scrolled && currentPage === 'home' ? 'brightness-0 invert' : ''}`}
-                />
-              </Interactive>
+            {/* Background Hover Image Reveal */}
+            <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-0 group-hover:opacity-20 transition-opacity duration-700 pointer-events-none hidden lg:block mask-image-gradient">
+              <img src={srv.img} className="w-full h-full object-cover img-monochrome" alt="" />
             </div>
 
-            {/* Universal Menu Toggle (Hamburger) */}
-            <Interactive className={`z-10 transition-colors duration-500 flex items-center justify-end flex-1 ${!scrolled && currentPage === 'home' ? 'text-white' : 'text-zinc-950'}`}>
-              <button onClick={() => setIsMenuOpen(true)} className="flex items-center gap-3 p-2 -mr-2 group hover:opacity-70 transition-opacity">
-                <span className="text-[10px] md:text-xs tracking-widest uppercase font-medium hidden sm:block mt-0.5">Menu</span>
-                <Menu className="w-6 h-6 md:w-7 md:h-7" />
-              </button>
-            </Interactive>
+            <div className="col-span-12 md:col-span-2 flex items-center mb-6 md:mb-0 relative z-10">
+              <span className="font-display text-4xl md:text-5xl text-[#444] group-hover:text-white transition-colors">{srv.id}</span>
+            </div>
+            <div className="col-span-12 md:col-span-5 mb-4 md:mb-0 relative z-10">
+              <h3 className="font-display text-3xl md:text-4xl font-bold uppercase tracking-tight transition-all duration-500 text-outline group-hover:text-white group-hover:[-webkit-text-stroke:0px]">
+                {srv.title}
+              </h3>
+            </div>
+            <div className="col-span-12 md:col-span-4 relative z-10">
+              <p className="text-base text-[#888] leading-relaxed">{srv.desc}</p>
+            </div>
+            <div className="col-span-12 md:col-span-1 flex justify-start md:justify-end mt-6 md:mt-0 opacity-0 group-hover:opacity-100 transition-opacity relative z-10">
+               <div className="w-16 h-16 rounded-full border border-white flex items-center justify-center text-white">
+                  <ArrowRight size={24} />
+               </div>
+            </div>
           </div>
-        </header>
+        ))}
+      </div>
+    </div>
+  );
+};
 
-        {/* Menu Backdrop Overlay */}
-        <div 
-          className={`fixed inset-0 bg-zinc-950/30 backdrop-blur-sm z-[90] transition-opacity duration-700 ${isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-          onClick={() => setIsMenuOpen(false)}
-        />
+const ContactPage = () => {
+  useScrollReveal();
+  return (
+    <div className="flex flex-col pt-24 md:pt-32 page-enter pb-24 w-full relative">
+      
+      {/* Background Architectural Blueprint */}
+      <div className="absolute top-0 right-0 w-1/2 h-full opacity-[0.02] pointer-events-none z-0 overflow-hidden flex flex-wrap">
+        {Array(20).fill(0).map((_, i) => (
+          <div key={i} className="w-24 h-24 border border-white/50 relative">
+            <div className="absolute top-0 left-0 w-2 h-2 border-r border-b border-white/50"></div>
+          </div>
+        ))}
+      </div>
 
-        {/* Right Side Slide-Out Menu Panel */}
-        <div className={`fixed top-0 right-0 h-full w-full sm:w-[400px] md:w-[450px] bg-zinc-950 z-[100] flex flex-col p-8 md:p-12 transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-          <div className="flex justify-between items-center w-full">
-            <span className="text-[10px] tracking-[0.3em] uppercase text-zinc-500 font-semibold">Navigation</span>
-            <button onClick={() => setIsMenuOpen(false)} className="text-white hover:text-zinc-400 transition-colors p-2 -mr-2">
-              <X className="w-8 h-8" />
+      <section className="grid-editorial mb-16 relative z-10">
+        <SectionHeader kicker="Initiate" />
+        <div className="col-span-12 md:col-span-8 reveal delay-100">
+           <InstructionTag text="SECURE CONNECTION ESTABLISHED" />
+           <h1 className="font-display text-5xl md:text-7xl font-black uppercase tracking-tighter leading-none mt-6">
+             Start A <br/><span className="text-outline">Project</span>
+           </h1>
+        </div>
+      </section>
+      
+      <section className="grid-editorial pt-12 border-t border-white/10 reveal delay-200 relative z-10">
+        <div className="col-span-12 md:col-span-7 pr-0 md:pr-12 mb-20 md:mb-0">
+          <form className="flex flex-col gap-10" onSubmit={(e) => e.preventDefault()}>
+            <div className="flex flex-col gap-4 reveal">
+              <label className="text-[10px] uppercase tracking-[0.4em] text-[#888] font-medium flex items-center gap-2">
+                [01] Your Name
+              </label>
+              <input type="text" placeholder="John Doe" className="w-full text-xl md:text-2xl focus:bg-white/[0.02] px-4" />
+            </div>
+            <div className="flex flex-col gap-4 reveal delay-100">
+              <label className="text-[10px] uppercase tracking-[0.4em] text-[#888] font-medium flex items-center gap-2">
+                [02] Email Address
+              </label>
+              <input type="email" placeholder="john@company.com" className="w-full text-xl md:text-2xl focus:bg-white/[0.02] px-4" />
+            </div>
+            <div className="flex flex-col gap-4 reveal delay-200">
+              <label className="text-[10px] uppercase tracking-[0.4em] text-[#888] font-medium flex items-center gap-2">
+                [03] Project Details
+              </label>
+              <textarea placeholder="Tell us about your vision..." rows={3} className="w-full text-xl md:text-2xl resize-none focus:bg-white/[0.02] px-4" />
+            </div>
+            <button className="mt-8 pb-4 border-b border-white hover:border-[#777] text-white hover:text-[#777] transition-colors flex items-center justify-between font-display text-xl font-bold uppercase tracking-widest reveal delay-300 group">
+              Submit Inquiry
+              <ArrowRight className="group-hover:translate-x-3 transition-transform" size={24} />
             </button>
-          </div>
-          
-          <div className="flex flex-col items-start justify-center gap-8 mt-12 mb-12 flex-1 w-full">
-            {navLinks.map((link, i) => (
-              <div 
-                key={link} 
-                onClick={() => setCurrentPage(link)} 
-                className={`text-4xl md:text-5xl font-light tracking-tight text-white uppercase cursor-pointer text-left transition-colors duration-500 hover:text-zinc-400 ${isMenuOpen ? 'translate-x-0 opacity-100' : 'translate-x-12 opacity-0'}`}
-                style={{ transitionDelay: `${100 + (i * 75)}ms`, transitionProperty: 'opacity, transform, color' }}
-              >
-                {link}
-              </div>
-            ))}
-          </div>
-
-          <div className="flex flex-col items-start gap-4 mt-auto pt-12 border-t border-zinc-800 text-left w-full">
-             <span className="text-[10px] tracking-[0.3em] uppercase text-zinc-500 font-semibold mb-2">Get in touch</span>
-             <a href="mailto:info@pillarproperties.co.nz" className="text-white hover:text-zinc-400 transition-colors font-light text-lg">info@pillarproperties.co.nz</a>
-             <a href="tel:+6491234567" className="text-white hover:text-zinc-400 transition-colors font-light text-lg">+64 9 123 4567</a>
-          </div>
+          </form>
         </div>
 
-        {/* Persistent Floating CTA */}
-        {scrolled && currentPage !== 'contact' && (
-           <Interactive className="fixed bottom-8 right-6 md:right-12 lg:right-16 z-40 animate-in slide-in-from-bottom-10 fade-in duration-500 hidden md:block">
-              <button 
-                onClick={() => setCurrentPage('contact')} 
-                className="bg-zinc-950 text-white px-8 py-4 text-xs tracking-[0.2em] uppercase font-semibold rounded-full shadow-2xl hover:bg-zinc-800 transition-colors flex items-center gap-2"
-              >
-                Inquire Now <ArrowUpRight className="w-4 h-4" />
-              </button>
-           </Interactive>
-        )}
-
-        {/* Dynamic Page Rendering */}
-        <main className="flex-grow z-10 bg-[#fafafa]">
-          {currentPage === 'home' && <HomePage navigate={setCurrentPage} />}
-          {currentPage === 'about' && <AboutPage />}
-          {currentPage === 'services' && <ServicesPage />}
-          {currentPage === 'projects' && <ProjectsPage />}
-          {currentPage === 'gallery' && <GalleryPage />}
-          {currentPage === 'contact' && <ContactPage />}
-        </main>
-
-        {/* Architectural Footer */}
-        <footer className="bg-zinc-950 text-zinc-400 py-24 px-[3%] relative z-20">
-          <div className="max-w-[1600px] mx-auto w-full">
-            <div className="flex flex-col md:flex-row justify-between items-start border-b border-zinc-800 pb-20">
-              <div className="mb-12 md:mb-0">
-                <Interactive onClick={() => setCurrentPage('home')}>
-                  <img 
-                    src="https://static.wixstatic.com/media/548938_7808033ca9fd4a2c9b9240e3e3f945e2~mv2.png" 
-                    alt="Pillar Properties" 
-                    className="h-12 md:h-16 w-auto mb-6 cursor-pointer object-contain" 
-                  />
-                </Interactive>
-                <div className="flex gap-6 mt-12">
-                  <Interactive><Instagram className="w-5 h-5 text-zinc-500 hover:text-white transition-colors cursor-pointer" /></Interactive>
-                  <Interactive><Linkedin className="w-5 h-5 text-zinc-500 hover:text-white transition-colors cursor-pointer" /></Interactive>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-12 md:gap-32">
-                <div>
-                  <h4 className="text-[10px] md:text-xs tracking-[0.2em] uppercase font-semibold text-zinc-600 mb-8">Navigation</h4>
-                  <ul className="space-y-4 text-sm md:text-base">
-                    {navLinks.map(link => (
-                      <li key={link}>
-                        <Interactive onClick={() => setCurrentPage(link)}>
-                          <span className="hover:text-white transition-colors capitalize cursor-pointer font-light">{link}</span>
-                        </Interactive>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="text-[10px] md:text-xs tracking-[0.2em] uppercase font-semibold text-zinc-600 mb-8">Contact</h4>
-                  <ul className="space-y-4 font-light text-sm md:text-base">
-                    <li>Auckland CBD</li>
-                    <li>+64 9 123 4567</li>
-                    <li>info@pillarproperties.co.nz</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-            
-            <div className="pt-8 flex flex-col md:flex-row justify-between items-center text-[10px] md:text-xs tracking-widest uppercase font-semibold text-zinc-600">
-              <p className="mb-4 md:mb-0">&copy; {new Date().getFullYear()} PILLAR PROPERTIES</p>
-              <div className="flex gap-8">
-                <Interactive><span className="hover:text-zinc-400 cursor-pointer transition-colors">Privacy</span></Interactive>
-                <Interactive><span className="hover:text-zinc-400 cursor-pointer transition-colors">Terms</span></Interactive>
-              </div>
-            </div>
+        <div className="col-span-12 md:col-span-4 md:col-start-9 flex flex-col gap-20 reveal delay-300">
+          <div className="flex flex-col gap-6">
+            <h4 className="text-[10px] uppercase tracking-[0.3em] text-[#777] flex items-center gap-4">
+              <span className="w-8 h-[1px] bg-[#777]"></span> Direct Email
+            </h4>
+            <a href="mailto:hello@liaisonit.com" className="font-display text-2xl md:text-3xl font-black text-outline hover:text-white transition-colors">
+              hello@<br/>liaisonit.com
+            </a>
           </div>
-        </footer>
+          
+          <div className="flex flex-col gap-8">
+             <h4 className="text-[10px] uppercase tracking-[0.3em] text-[#777] flex items-center gap-4">
+              <span className="w-8 h-[1px] bg-[#777]"></span> Global Hubs
+            </h4>
+             <div className="flex flex-col gap-6">
+               {LOCATIONS.map(loc => (
+                 <div key={loc.id} className="flex items-start justify-between border-b border-white/10 pb-4 group cursor-pointer">
+                   <div>
+                     <p className="text-lg font-bold uppercase tracking-widest text-white group-hover:text-[#aaa] transition-colors">{loc.name}</p>
+                     <p className="text-[10px] text-[#777] uppercase tracking-wider mt-1">{loc.country}</p>
+                   </div>
+                   <MapPin size={18} className="text-[#555] group-hover:text-white transition-colors" />
+                 </div>
+               ))}
+             </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
 
+// --- MAIN APP (ROUTER) ---
+export default function App() {
+  const [currentPage, setCurrentPage] = useState('home');
+  const [activeLocation, setActiveLocation] = useState(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [navOpen, setNavOpen] = useState(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => setMousePos({ x: e.clientX, y: e.clientY });
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  const navLinks = [
+    { id: 'home', label: 'Home' },
+    { id: 'about', label: 'About' },
+    { id: 'services', label: 'Services' },
+    { id: 'contact', label: 'Contact' },
+  ];
+
+  const navigateTo = (pageId) => {
+    setCurrentPage(pageId);
+    setNavOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  return (
+    <div className="min-h-screen relative bg-[#050505] text-white selection:bg-white selection:text-black flex flex-col font-poppins font-light">
+      <StyleInjector />
+
+      {/* Structural Architectural Lines */}
+      <div className="fixed inset-0 pointer-events-none z-0 flex justify-between px-6 md:px-12 max-w-[1800px] mx-auto w-full mix-blend-overlay opacity-20">
+        <div className="w-[1px] h-full bg-white"></div>
+        <div className="w-[1px] h-full bg-white hidden md:block"></div>
+        <div className="w-[1px] h-full bg-white hidden lg:block"></div>
+        <div className="w-[1px] h-full bg-white"></div>
       </div>
-    </CursorContext.Provider>
+
+      {/* Modern Pointer Glow */}
+      <div 
+        className="fixed w-[800px] h-[800px] rounded-full pointer-events-none blur-[150px] transition-transform duration-[1.5s] ease-out z-0 hidden md:block mix-blend-screen"
+        style={{ 
+          background: 'radial-gradient(circle, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0) 60%)',
+          transform: `translate(${mousePos.x - 400}px, ${mousePos.y - 400}px)` 
+        }}
+      />
+
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50 p-6 md:px-12 flex justify-between items-center bg-[#050505]/80 backdrop-blur-xl border-b border-white/5">
+        <button onClick={() => navigateTo('home')} className="font-display font-black text-xl md:text-2xl tracking-tighter uppercase flex items-center gap-4 hover:opacity-70 transition-opacity">
+          <div className="w-6 h-6 bg-white" />
+          Liaisonit
+        </button>
+        
+        {/* Desktop Nav */}
+        <div className="hidden md:flex gap-12 items-center">
+          {navLinks.map(link => (
+            <button 
+              key={link.id} 
+              onClick={() => navigateTo(link.id)}
+              className={`text-[10px] font-bold uppercase tracking-[0.3em] transition-all relative group
+                ${currentPage === link.id ? 'text-white' : 'text-[#777] hover:text-white'}`}
+            >
+              {link.label}
+              <span className={`absolute -bottom-4 left-0 h-[2px] bg-white transition-all duration-500 ease-out ${currentPage === link.id ? 'w-full' : 'w-0 group-hover:w-1/2'}`}></span>
+            </button>
+          ))}
+        </div>
+
+        {/* Mobile Menu Toggle */}
+        <button className="md:hidden text-white p-2" onClick={() => setNavOpen(!navOpen)}>
+          {navOpen ? <X size={28} /> : <Menu size={28} />}
+        </button>
+      </nav>
+
+      {/* Mobile Nav Overlay */}
+      {navOpen && (
+        <div className="fixed inset-0 z-40 bg-[#050505] flex flex-col items-center justify-center gap-12 md:hidden">
+          {navLinks.map((link, idx) => (
+            <button 
+              key={link.id} 
+              onClick={() => navigateTo(link.id)}
+              className={`font-display text-5xl font-black uppercase tracking-tighter page-enter ${currentPage === link.id ? 'text-white' : 'text-outline'}`}
+              style={{ animationDelay: `${idx * 0.1}s` }}
+            >
+              {link.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Main Content Router */}
+      <main className="relative z-10 px-6 md:px-12 pt-24 max-w-[1800px] w-full mx-auto flex-grow flex flex-col">
+        {currentPage === 'home' && <HomePage setActiveLocation={setActiveLocation} activeLocation={activeLocation} navigateTo={navigateTo} />}
+        {currentPage === 'about' && <AboutPage />}
+        {currentPage === 'services' && <ServicesPage />}
+        {currentPage === 'contact' && <ContactPage />}
+      </main>
+
+      {/* Footer */}
+      <footer className="relative z-10 px-6 md:px-12 pb-12 mt-auto max-w-[1800px] w-full mx-auto">
+        <div className="border-t border-white/10 pt-12 flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] text-[#777] uppercase tracking-[0.3em] font-bold">
+          <p>© 2019–2026 LIAISONIT STUDIOS.</p>
+          {/* Social icons removed per user request */}
+        </div>
+      </footer>
+    </div>
   );
 }
